@@ -1,45 +1,34 @@
-// Content Script - Runs on supported web pages
-console.log('AI Content Generator - Content Script Loaded');
+import { BaseExtractor, MediumExtractor } from './extractors';
 
-// Detect the current platform
-const detectPlatform = (): string => {
-  const url = window.location.href;
+console.log('🚀 AI Content Generator - Content Script Loaded');
+console.log('📍 Current URL:', window.location.href);
 
-  if (url.includes('youtube.com')) return 'youtube';
-  if (url.includes('udemy.com')) return 'udemy';
-  if (url.includes('coursera.org')) return 'coursera';
-  if (url.includes('medium.com')) return 'medium';
-  if (url.includes('dev.to')) return 'dev.to';
-  if (url.includes('hashnode.dev')) return 'hashnode';
+const extractors: BaseExtractor[] = [new MediumExtractor()];
 
-  return 'generic';
-};
-
-// Listen for messages from background or popup
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'EXTRACT_CONTENT') {
-    const platform = detectPlatform();
-    console.log('Extracting content from:', platform);
+    console.log('📨 Received extraction request');
 
-    // Basic extraction (will be enhanced in BLOG-002)
-    const content = {
-      platform,
-      title: document.title,
-      url: window.location.href,
-      extractedAt: new Date().toISOString(),
-    };
+    const extractor = extractors.find((e) => e.detect());
 
-    sendResponse({ success: true, content });
+    if (extractor) {
+      const result = extractor.extract();
+      sendResponse(result);
+    } else {
+      console.log('⚠️ No extractor found for this page');
+      sendResponse({
+        success: false,
+        error: 'No extractor available for this platform',
+      });
+    }
   }
 
   return true;
 });
 
-// Initialize platform-specific features
-const platform = detectPlatform();
-if (platform !== 'generic') {
-  console.log(`Platform detected: ${platform}`);
-  // Future: Add platform-specific initialization
+const detectedExtractor = extractors.find((e) => e.detect());
+if (detectedExtractor) {
+  console.log('🎯 Platform detected:', detectedExtractor.constructor.name);
 }
 
 export {};
