@@ -88,19 +88,32 @@ export class GenericExtractor extends BaseExtractor {
     return parts.join('\n');
   }
 
-  protected extractImages(): string[] {
+  protected async extractImages(): Promise<Record<string, string>> {
     const mainContent = this.findMainContent();
-    if (!mainContent) return [];
+    if (!mainContent) return {};
 
     const imgElements = mainContent.querySelectorAll('img');
-    const images: string[] = [];
+    const imageUrls: string[] = [];
 
     for (const img of Array.from(imgElements)) {
       const src = img.src || img.getAttribute('data-src');
       if (src) {
-        images.push(src);
+        imageUrls.push(src);
       }
     }
+
+    // console.log(`🖼️ Found ${imageUrls.length} images to convert`);
+
+    const images: Record<string, string> = {};
+    const conversions = imageUrls.map(async (url) => {
+      const base64 = await this.fetchImageAsBase64(url);
+      if (base64) {
+        images[url] = base64;
+      }
+    });
+
+    await Promise.all(conversions);
+    // console.log(`✅ Converted ${Object.keys(images).length} images to base64`);
 
     return images;
   }

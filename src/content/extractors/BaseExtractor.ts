@@ -5,17 +5,17 @@ export abstract class BaseExtractor {
 
   abstract detect(): boolean;
 
-  extract(): ExtractionResult {
-    console.log(`🎯 Starting ${this.platform} extraction...`);
+  async extract(): Promise<ExtractionResult> {
+    // console.log(`🎯 Starting ${this.platform} extraction...`);
 
     const title = this.extractTitle();
-    console.log('📝 Title:', title);
+    // console.log('📝 Title:', title);
 
     const author = this.extractAuthor();
-    console.log('👤 Author:', author);
+    // console.log('👤 Author:', author);
 
     const content = this.extractContent();
-    console.log('📄 Content length:', content.length);
+    // console.log('📄 Content length:', content.length);
 
     if (!content) {
       console.error('❌ No content extracted');
@@ -25,7 +25,7 @@ export abstract class BaseExtractor {
       };
     }
 
-    const images = this.extractImages();
+    const images = await this.extractImages();
 
     const result = {
       platform: this.platform,
@@ -34,14 +34,14 @@ export abstract class BaseExtractor {
       content,
       url: window.location.href,
       extractedAt: new Date().toISOString(),
-      images: images.length > 0 ? images : undefined,
+      images: Object.keys(images).length > 0 ? images : undefined,
     };
 
-    console.log('\n✅ Extraction Complete!');
-    console.log('📦 Extracted Object:', result);
-    if (images && images.length > 0) {
-      console.log(`🖼️ Images extracted: ${images.length}`);
-    }
+    // console.log('\n✅ Extraction Complete!');
+    // console.log('📦 Extracted Object:', result);
+    // if (images && Object.keys(images).length > 0) {
+    //   console.log(`🖼️ Images extracted: ${Object.keys(images).length}`);
+    // }
 
     return {
       success: true,
@@ -67,7 +67,27 @@ export abstract class BaseExtractor {
     return '';
   }
 
-  protected extractImages(): string[] {
-    return [];
+  protected async extractImages(): Promise<Record<string, string>> {
+    return {};
+  }
+
+  protected async fetchImageAsBase64(url: string): Promise<string | null> {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return await this.blobToBase64(blob);
+    } catch (error) {
+      console.error(`Failed to fetch image: ${url}`, error);
+      return null;
+    }
+  }
+
+  protected blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
   }
 }

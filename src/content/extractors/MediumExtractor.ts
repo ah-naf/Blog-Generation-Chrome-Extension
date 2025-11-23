@@ -47,16 +47,16 @@ export class MediumExtractor extends BaseExtractor {
 
   protected extractContent(): string {
     const article = document.querySelector('article');
-    console.log('🔍 Looking for article tag...');
-    console.log('Article element:', article);
+    // console.log('🔍 Looking for article tag...');
+    // console.log('Article element:', article);
 
     if (!article) {
       console.error('❌ No <article> tag found');
       return '';
     }
 
-    console.log('✅ Found article tag');
-    console.log('Article children count:', article.children.length);
+    // console.log('✅ Found article tag');
+    // console.log('Article children count:', article.children.length);
 
     const parts: string[] = [];
     const title = this.extractTitle();
@@ -64,7 +64,7 @@ export class MediumExtractor extends BaseExtractor {
 
     // Query all content elements within article, not just direct children
     const elements = article.querySelectorAll('p, h1, h2, h3, h4, h5, h6, ul, ol, pre, blockquote, figure');
-    console.log('Processing', elements.length, 'content elements');
+    // console.log('Processing', elements.length, 'content elements');
 
     for (const element of Array.from(elements)) {
       const tagName = element.tagName.toLowerCase();
@@ -111,18 +111,18 @@ export class MediumExtractor extends BaseExtractor {
       }
     }
 
-    console.log('📝 Extracted', parts.length, 'content parts');
+    // console.log('📝 Extracted', parts.length, 'content parts');
     const result = parts.join('\n');
-    console.log('📊 Final content length:', result.length);
+    // console.log('📊 Final content length:', result.length);
     return result;
   }
 
-  protected extractImages(): string[] {
+  protected async extractImages(): Promise<Record<string, string>> {
     const article = document.querySelector('article');
-    if (!article) return [];
+    if (!article) return {};
 
     const figures = article.querySelectorAll('figure');
-    const images: string[] = [];
+    const imageUrls: string[] = [];
 
     for (const figure of Array.from(figures)) {
       const img = figure.querySelector('img');
@@ -130,9 +130,22 @@ export class MediumExtractor extends BaseExtractor {
 
       const src = img.src || img.getAttribute('data-src');
       if (src) {
-        images.push(src);
+        imageUrls.push(src);
       }
     }
+
+    // console.log(`🖼️ Found ${imageUrls.length} images to convert`);
+
+    const images: Record<string, string> = {};
+    const conversions = imageUrls.map(async (url) => {
+      const base64 = await this.fetchImageAsBase64(url);
+      if (base64) {
+        images[url] = base64;
+      }
+    });
+
+    await Promise.all(conversions);
+    // console.log(`✅ Converted ${Object.keys(images).length} images to base64`);
 
     return images;
   }

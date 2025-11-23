@@ -5,7 +5,7 @@ export interface ExtractedContent {
   content: string;
   url: string;
   extractedAt: string;
-  images?: string[];
+  images?: Record<string, string>;
 }
 
 export interface ExtractionResult {
