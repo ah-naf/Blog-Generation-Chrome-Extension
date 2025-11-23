@@ -9,15 +9,23 @@ export abstract class BaseExtractor {
     console.log(`🎯 Starting ${this.platform} extraction...`);
 
     const title = this.extractTitle();
+    console.log('📝 Title:', title);
+
     const author = this.extractAuthor();
+    console.log('👤 Author:', author);
+
     const content = this.extractContent();
+    console.log('📄 Content length:', content.length);
 
     if (!content) {
+      console.error('❌ No content extracted');
       return {
         success: false,
         error: 'Could not extract content from this page',
       };
     }
+
+    const images = this.extractImages();
 
     const result = {
       platform: this.platform,
@@ -26,10 +34,14 @@ export abstract class BaseExtractor {
       content,
       url: window.location.href,
       extractedAt: new Date().toISOString(),
+      images: images.length > 0 ? images : undefined,
     };
 
     console.log('\n✅ Extraction Complete!');
     console.log('📦 Extracted Object:', result);
+    if (images && images.length > 0) {
+      console.log(`🖼️ Images extracted: ${images.length}`);
+    }
 
     return {
       success: true,
@@ -53,5 +65,9 @@ export abstract class BaseExtractor {
       }
     }
     return '';
+  }
+
+  protected extractImages(): string[] {
+    return [];
   }
 }

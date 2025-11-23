@@ -46,31 +46,48 @@ export class MediumExtractor extends BaseExtractor {
   }
 
   protected extractContent(): string {
-    // console.log('📄 Extracting content...');
-
     const article = document.querySelector('article');
+    console.log('🔍 Looking for article tag...');
+    console.log('Article element:', article);
+
     if (!article) {
       console.error('❌ No <article> tag found');
       return '';
     }
 
-    // console.log('✅ Found <article> tag');
-
-    const contentElements = article.querySelectorAll(
-      'p, h1, h2, h3, h4, h5, h6, ul, ol, pre, blockquote'
-    );
-    // console.log(`📊 Found ${contentElements.length} content elements`);
+    console.log('✅ Found article tag');
+    console.log('Article children count:', article.children.length);
 
     const parts: string[] = [];
     const title = this.extractTitle();
     const author = this.extractAuthor();
 
-    contentElements.forEach((element) => {
-      const tagName = element.tagName.toLowerCase();
-      const text = element.textContent?.trim();
+    // Query all content elements within article, not just direct children
+    const elements = article.querySelectorAll('p, h1, h2, h3, h4, h5, h6, ul, ol, pre, blockquote, figure');
+    console.log('Processing', elements.length, 'content elements');
 
-      if (!text || text.length < 3) return;
-      if (text === title || text === author) return;
+    for (const element of Array.from(elements)) {
+      const tagName = element.tagName.toLowerCase();
+
+      if (tagName === 'figure') {
+        const img = element.querySelector('img');
+        if (img && this.isContentImage(img)) {
+          const alt = img.alt || 'Image';
+          const src = img.src || img.getAttribute('data-src') || '';
+          if (src) {
+            parts.push(`\n![${alt}](${src})\n`);
+          }
+          const figcaption = element.querySelector('figcaption');
+          if (figcaption?.textContent) {
+            parts.push(`*${this.cleanText(figcaption.textContent)}*\n`);
+          }
+        }
+        continue;
+      }
+
+      const text = element.textContent?.trim();
+      if (!text || text.length < 3) continue;
+      if (text === title || text === author) continue;
 
       if (tagName.match(/^h[1-6]$/)) {
         parts.push(`\n## ${this.cleanText(text)}\n`);
@@ -92,11 +109,47 @@ export class MediumExtractor extends BaseExtractor {
       } else if (tagName === 'p') {
         parts.push(this.cleanText(text) + '\n');
       }
-    });
+    }
 
-    const content = parts.join('\n');
-    // console.log(`📏 Total content length: ${content.length} characters`);
+    console.log('📝 Extracted', parts.length, 'content parts');
+    const result = parts.join('\n');
+    console.log('📊 Final content length:', result.length);
+    return result;
+  }
 
-    return content;
+  protected extractImages(): string[] {
+    const article = document.querySelector('article');
+    if (!article) return [];
+
+    const figures = article.querySelectorAll('figure');
+    const images: string[] = [];
+
+    for (const figure of Array.from(figures)) {
+      const img = figure.querySelector('img');
+      if (!img || !this.isContentImage(img)) continue;
+
+      const src = img.src || img.getAttribute('data-src');
+      if (src) {
+        images.push(src);
+      }
+    }
+
+    return images;
+  }
+
+  private isContentImage(img: HTMLImageElement): boolean {
+    const src = img.src || '';
+    const alt = img.alt || '';
+    const parent = img.closest('figure');
+
+    if (!parent) return false;
+    if (src.includes('avatar')) return false;
+    if (src.includes('badge')) return false;
+    if (src.includes('icon')) return false;
+    if (alt.toLowerCase().includes('avatar')) return false;
+    if (alt.toLowerCase().includes('profile')) return false;
+    if (img.width < 100 && img.height < 100) return false;
+
+    return true;
   }
 }

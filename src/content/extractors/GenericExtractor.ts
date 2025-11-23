@@ -28,21 +28,31 @@ export class GenericExtractor extends BaseExtractor {
       return '';
     }
 
-    const contentElements = mainContent.querySelectorAll(
-      'p, h1, h2, h3, h4, h5, h6, ul, ol, pre, blockquote, div'
-    );
-
     const parts: string[] = [];
     const title = this.extractTitle();
+    const children = Array.from(mainContent.querySelectorAll(
+      'p, h1, h2, h3, h4, h5, h6, ul, ol, pre, blockquote, div, figure, img'
+    ));
 
-    contentElements.forEach((element) => {
+    for (const element of children) {
       const tagName = element.tagName.toLowerCase();
+
+      if (tagName === 'img' || tagName === 'figure') {
+        const img = tagName === 'img' ? element : element.querySelector('img');
+        if (img instanceof HTMLImageElement) {
+          const alt = img.alt || 'Image';
+          const src = img.src || img.getAttribute('data-src') || '';
+          if (src) {
+            parts.push(`\n![${alt}](${src})\n`);
+          }
+        }
+        continue;
+      }
+
       const text = element.textContent?.trim();
-
-      if (!text || text.length < 3) return;
-      if (text === title) return;
-
-      if (this.shouldSkipElement(element)) return;
+      if (!text || text.length < 3) continue;
+      if (text === title) continue;
+      if (this.shouldSkipElement(element)) continue;
 
       if (tagName.match(/^h[1-6]$/)) {
         parts.push(`\n## ${this.cleanText(text)}\n`);
@@ -73,9 +83,26 @@ export class GenericExtractor extends BaseExtractor {
           parts.push(this.cleanText(text) + '\n');
         }
       }
-    });
+    }
 
     return parts.join('\n');
+  }
+
+  protected extractImages(): string[] {
+    const mainContent = this.findMainContent();
+    if (!mainContent) return [];
+
+    const imgElements = mainContent.querySelectorAll('img');
+    const images: string[] = [];
+
+    for (const img of Array.from(imgElements)) {
+      const src = img.src || img.getAttribute('data-src');
+      if (src) {
+        images.push(src);
+      }
+    }
+
+    return images;
   }
 
   private findMainContent(): HTMLElement | null {

@@ -12,16 +12,26 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'EXTRACT_CONTENT') {
     console.log('📨 Received extraction request');
 
-    const extractor = extractors.find((e) => e.detect());
+    try {
+      const extractor = extractors.find((e) => e.detect());
 
-    if (extractor) {
-      const result = extractor.extract();
-      sendResponse(result);
-    } else {
-      console.log('⚠️ No extractor found for this page');
+      if (extractor) {
+        console.log('✅ Found extractor:', extractor.constructor.name);
+        const result = extractor.extract();
+        console.log('📤 Sending result:', result);
+        sendResponse(result);
+      } else {
+        console.log('⚠️ No extractor found for this page');
+        sendResponse({
+          success: false,
+          error: 'No extractor available for this platform',
+        });
+      }
+    } catch (error) {
+      console.error('❌ Extraction error:', error);
       sendResponse({
         success: false,
-        error: 'No extractor available for this platform',
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
