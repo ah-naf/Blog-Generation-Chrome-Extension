@@ -1,9 +1,12 @@
-import { BaseExtractor, MediumExtractor } from './extractors';
+import { BaseExtractor, MediumExtractor, GenericExtractor } from './extractors';
 
 console.log('🚀 AI Content Generator - Content Script Loaded');
 console.log('📍 Current URL:', window.location.href);
 
-const extractors: BaseExtractor[] = [new MediumExtractor()];
+const extractors: BaseExtractor[] = [
+  new MediumExtractor(),
+  new GenericExtractor(),
+];
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'EXTRACT_CONTENT') {
