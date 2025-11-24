@@ -11,13 +11,21 @@ chrome.runtime.onInstalled.addListener((details) => {
         initialized: true,
         theme: 'light',
       },
+      sources: [],
     });
   } else if (details.reason === 'update') {
     console.log('Extension updated');
   }
 });
 
-// Listen for messages from content scripts or popup
+// Open sidebar when extension icon is clicked
+chrome.action.onClicked.addListener((tab) => {
+  if (tab.id) {
+    chrome.sidePanel.open({ tabId: tab.id });
+  }
+});
+
+// Listen for messages from content scripts or sidepanel
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   console.log('Message received:', message);
 
@@ -39,7 +47,6 @@ chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab.url) {
     // Check if URL is a supported platform
     const supportedPlatforms = [
-      'youtube.com',
       'udemy.com',
       'coursera.org',
       'medium.com',

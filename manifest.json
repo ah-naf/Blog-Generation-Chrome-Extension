@@ -9,7 +9,6 @@
     "128": "icons/icon-128.svg"
   },
   "action": {
-    "default_popup": "src/popup/popup.html",
     "default_title": "AI Content Generator",
     "default_icon": {
       "16": "icons/icon-16.svg",
@@ -28,7 +27,6 @@
   "content_scripts": [
     {
       "matches": [
-        "https://*.youtube.com/*",
         "https://*.udemy.com/*",
         "https://*.coursera.org/*",
         "https://*.medium.com/*",
@@ -48,8 +46,6 @@
     "scripting"
   ],
   "host_permissions": [
-    "https://*.youtube.com/*",
-    "https://*.googleapis.com/*",
     "https://*/"
   ],
   "web_accessible_resources": [

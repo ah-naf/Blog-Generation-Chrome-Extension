@@ -1,7 +1,6 @@
 // Common types used across the extension
 
 export type Platform =
-  | 'youtube'
   | 'udemy'
   | 'coursera'
   | 'medium'
@@ -11,15 +10,19 @@ export type Platform =
 
 export type ContentType = 'course' | 'video' | 'blog';
 
-export interface ExtractedContent {
+export interface SourceContent {
   id: string;
-  type: ContentType;
-  platform: Platform;
+  platform: string;
   title: string;
+  author: string;
+  content: string;
   url: string;
-  content: Section[];
-  metadata: Record<string, unknown>;
   extractedAt: string;
+  images?: Record<string, string>; // URL -> Base64
+  originalContent?: string; // Store original content before refinement
+  refinedContent?: string; // Cache refined content to avoid re-processing
+  isRefined?: boolean; // Flag to indicate if content has been refined
+  refinedAt?: string; // Timestamp of when content was refined
 }
 
 export interface Section {
@@ -41,5 +44,5 @@ export interface Settings {
 
 export interface StorageData {
   settings?: Settings;
-  extractedContent?: ExtractedContent[];
+  sources?: SourceContent[];
 }
