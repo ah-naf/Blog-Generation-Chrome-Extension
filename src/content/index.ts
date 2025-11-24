@@ -1,9 +1,10 @@
-import { BaseExtractor, MediumExtractor, GenericExtractor } from './extractors';
+import { BaseExtractor, MediumExtractor, GenericExtractor, YouTubeExtractor } from './extractors';
 
 // console.log('🚀 AI Content Generator - Content Script Loaded');
 // console.log('📍 Current URL:', window.location.href);
 
 const extractors: BaseExtractor[] = [
+  new YouTubeExtractor(),
   new MediumExtractor(),
   new GenericExtractor(),
 ];

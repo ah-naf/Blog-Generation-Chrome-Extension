@@ -38,7 +38,7 @@ export abstract class BaseExtractor {
     };
 
     // console.log('\n✅ Extraction Complete!');
-    // console.log('📦 Extracted Object:', result);
+    console.log('📦 Extracted Object:', result);
     // if (images && Object.keys(images).length > 0) {
     //   console.log(`🖼️ Images extracted: ${Object.keys(images).length}`);
     // }
