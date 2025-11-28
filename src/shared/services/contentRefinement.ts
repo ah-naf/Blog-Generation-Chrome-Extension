@@ -1,8 +1,6 @@
-// Gemini AI Service for content refinement
-
-const GEMINI_API_KEY_STORAGE_KEY = 'gemini_api_key';
-// Using Gemini 2.0 Flash (experimental) - latest and fastest model
-const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+// Content Refinement Service
+// Uses the generic AI Service to refine and format content into beautiful markdown
+import { generateContent } from './aiService';
 
 export interface RefineContentOptions {
   title: string;
@@ -16,28 +14,6 @@ export interface RefineContentResult {
   success: boolean;
   refinedContent?: string;
   error?: string;
-}
-
-/**
- * Get the stored Gemini API key
- */
-export async function getGeminiApiKey(): Promise<string | null> {
-  const result = await chrome.storage.local.get(GEMINI_API_KEY_STORAGE_KEY);
-  return result[GEMINI_API_KEY_STORAGE_KEY] || null;
-}
-
-/**
- * Set the Gemini API key
- */
-export async function setGeminiApiKey(apiKey: string): Promise<void> {
-  await chrome.storage.local.set({ [GEMINI_API_KEY_STORAGE_KEY]: apiKey });
-}
-
-/**
- * Clear the stored Gemini API key
- */
-export async function clearGeminiApiKey(): Promise<void> {
-  await chrome.storage.local.remove(GEMINI_API_KEY_STORAGE_KEY);
 }
 
 /**
@@ -107,101 +83,24 @@ ${rawContent}
 }
 
 /**
- * Refine content using Gemini AI
+ * Refine content using the configured AI provider
  */
 export async function refineContent(
   options: RefineContentOptions
 ): Promise<RefineContentResult> {
   try {
-    // Get API key
-    const apiKey = await getGeminiApiKey();
-    if (!apiKey) {
-      return {
-        success: false,
-        error: 'Gemini API key not configured. Please add your API key in settings.',
-      };
-    }
-
     // Build the prompt
-    const prompt = buildRefinementPrompt(options);
+    const userPrompt = buildRefinementPrompt(options);
+    const systemPrompt =
+      'You are a helpful AI assistant specialized in formatting markdown content.';
 
-    // Call Gemini API
-    const response = await fetch(`${GEMINI_API_ENDPOINT}?key=${apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: prompt,
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 8192,
-        },
-        safetySettings: [
-          {
-            category: 'HARM_CATEGORY_HARASSMENT',
-            threshold: 'BLOCK_NONE',
-          },
-          {
-            category: 'HARM_CATEGORY_HATE_SPEECH',
-            threshold: 'BLOCK_NONE',
-          },
-          {
-            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-            threshold: 'BLOCK_NONE',
-          },
-          {
-            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-            threshold: 'BLOCK_NONE',
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('Gemini API error:', errorData);
-
-      if (response.status === 403) {
-        return {
-          success: false,
-          error: 'Invalid API key. Please check your Gemini API key in settings.',
-        };
-      }
-
-      if (response.status === 429) {
-        return {
-          success: false,
-          error: 'Rate limit exceeded. Please try again in a few moments.',
-        };
-      }
-
-      return {
-        success: false,
-        error: `API error: ${response.status} ${response.statusText}`,
-      };
-    }
-
-    const data = await response.json();
-
-    // Extract the refined content
-    const refinedContent =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // Call AI Service
+    const refinedContent = await generateContent(systemPrompt, userPrompt);
 
     if (!refinedContent) {
       return {
         success: false,
-        error: 'No content returned from API',
+        error: 'No content returned from AI',
       };
     }
 
@@ -216,7 +115,7 @@ export async function refineContent(
       error:
         error instanceof Error
           ? error.message
-          : 'Failed to refine content. Please try again.',
+          : 'Failed to refine content. Please check your AI settings and API keys.',
     };
   }
 }
