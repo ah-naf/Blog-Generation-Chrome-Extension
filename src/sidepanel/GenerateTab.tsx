@@ -1,6 +1,7 @@
+import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Sparkles, CheckCircle2, Loader2, Search, FileText, ListTodo, PenTool, Circle } from 'lucide-react';
+import { Sparkles, CheckCircle2, Loader2, Search, FileText, ListTodo, PenTool, Circle, ChevronDown, ChevronUp, Copy, Download, RefreshCw } from 'lucide-react';
 import { blogAgent, BlogAgentState, TodoItem } from '@/agent/blogAgent';
 import { SourceContent } from '@/shared/types';
 
@@ -19,34 +20,61 @@ export function GenerateTab({
   onGeneratingChange,
   onAgentStateChange,
 }: GenerateTabProps) {
+  const [showTodos, setShowTodos] = useState(true);
+  const [showPlan, setShowPlan] = useState(false);
+
+  // Check if all todos are completed
+  const allTodosCompleted = agentState.todos && agentState.todos.length > 0 &&
+    agentState.todos.every(todo => todo.status === 'completed');
+
+  // Automatically collapse todos and plan when all are completed
+  useEffect(() => {
+    if (allTodosCompleted) {
+      setShowTodos(false);
+      setShowPlan(false);
+    }
+  }, [allTodosCompleted]);
+
   const handleGenerate = async () => {
     if (sources.length === 0) return;
 
     onGeneratingChange(true);
-    onAgentStateChange({
-      currentStep: 'analyzing_sources',
-      sourceAnalysis: '',
-      plan: '',
-      todos: [],
-      draft: '',
-    });
 
     try {
       const inputs = { sources } as any;
       const stream = await blogAgent.stream(inputs);
+
+      let isFirstChunk = true;
+      let currentState: Partial<BlogAgentState> = {};
 
       for await (const chunk of stream) {
         // The chunk contains the update from the last node
         const nodeName = Object.keys(chunk)[0];
         const update = (chunk as any)[nodeName] as Partial<BlogAgentState>;
 
-        onAgentStateChange({
-          ...agentState,
-          ...update,
-        });
+        // Clear old state on first chunk to prevent flash
+        if (isFirstChunk) {
+          currentState = {
+            currentStep: 'analyzing_sources',
+            sourceAnalysis: '',
+            plan: '',
+            todos: [],
+            draft: '',
+            ...update,
+          };
+          isFirstChunk = false;
+        } else {
+          currentState = {
+            ...currentState,
+            ...update,
+          };
+        }
+
+        onAgentStateChange(currentState);
       }
 
-      onAgentStateChange({ ...agentState, currentStep: 'finished' });
+      // The last chunk from executeDraftNode already sets currentStep: 'finished'
+      // No need to update again here
     } catch (error) {
       console.error('Generation failed:', error);
       onAgentStateChange({
@@ -63,11 +91,23 @@ export function GenerateTab({
     handleGenerate();
   };
 
+  const handleExport = () => {
+    const blob = new Blob([agentState.draft || ''], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `blog-draft-${Date.now()}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const steps = [
-    { id: 'analyzing_sources', label: 'Analyzing', icon: Search },
-    { id: 'creating_plan', label: 'Planning', icon: FileText },
-    { id: 'creating_todos', label: 'Tasks', icon: ListTodo },
-    { id: 'executing_draft', label: 'Writing', icon: PenTool },
+    { id: 'analyzing_sources', labelActive: 'Analyzing', labelCompleted: 'Analyzed', icon: Search },
+    { id: 'creating_plan', labelActive: 'Planning', labelCompleted: 'Planned', icon: FileText },
+    { id: 'creating_todos', labelActive: 'Creating Tasks', labelCompleted: 'Tasks Created', icon: ListTodo },
+    { id: 'executing_draft', labelActive: 'Writing', labelCompleted: 'Written', icon: PenTool },
   ];
 
   const getStepStatus = (stepId: string) => {
@@ -78,6 +118,12 @@ export function GenerateTab({
     if (currentIndex > stepIndex) return 'completed';
     if (currentIndex === stepIndex) return 'current';
     return 'pending';
+  };
+
+  const getStepLabel = (step: typeof steps[0]) => {
+    const status = getStepStatus(step.id);
+    if (status === 'completed') return step.labelCompleted;
+    return step.labelActive;
   };
 
   const getCurrentActivityMessage = () => {
@@ -100,6 +146,9 @@ export function GenerateTab({
         return 'Processing...';
     }
   };
+
+  // Check if any content exists to determine if we should show empty state
+  const hasContent = agentState.plan || agentState.draft || (agentState.todos && agentState.todos.length > 0);
 
   return (
     <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
@@ -156,7 +205,7 @@ export function GenerateTab({
                       : 'text-gray-500 dark:text-gray-400'
                   }`}
                 >
-                  {step.label}
+                  {getStepLabel(step)}
                 </span>
               </div>
             );
@@ -209,63 +258,128 @@ export function GenerateTab({
           </div>
         )}
 
-        {/* Plan Section */}
+        {/* Plan Section - Collapsible Accordion */}
         {agentState.plan && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-center gap-2 mb-3 text-primary-600 dark:text-primary-400">
-              <FileText className="w-4 h-4" />
-              <h3 className="font-semibold text-sm uppercase tracking-wider">Content Plan</h3>
-            </div>
-            <div className="prose dark:prose-invert prose-sm max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{agentState.plan}</ReactMarkdown>
-            </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <button
+              onClick={() => setShowPlan(!showPlan)}
+              className="w-full p-4 flex items-center justify-between text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
+            >
+              <div className="flex items-center gap-2 text-primary-600 dark:text-primary-400">
+                <FileText className="w-4 h-4" />
+                <h3 className="font-semibold text-sm uppercase tracking-wider">Content Plan</h3>
+              </div>
+              {showPlan ? (
+                <ChevronUp className="w-4 h-4 text-gray-500" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-gray-500" />
+              )}
+            </button>
+            {showPlan && (
+              <div className="px-4 pb-4 prose dark:prose-invert prose-sm max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{agentState.plan}</ReactMarkdown>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Todos Section */}
+        {/* Todos Section - Collapsible when all completed */}
         {agentState.todos && agentState.todos.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150">
-            <div className="flex items-center gap-2 mb-3 text-primary-600 dark:text-primary-400">
-              <ListTodo className="w-4 h-4" />
-              <h3 className="font-semibold text-sm uppercase tracking-wider">Action Items</h3>
-            </div>
-            <ul className="space-y-2">
-              {agentState.todos.map((todo: TodoItem) => (
-                <li key={todo.id} className="flex items-start gap-2 text-sm">
-                  {todo.status === 'completed' ? (
-                    <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                  ) : todo.status === 'in_progress' ? (
-                    <Loader2 className="w-4 h-4 text-blue-500 animate-spin flex-shrink-0 mt-0.5" />
-                  ) : (
-                    <Circle className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                  )}
-                  <span className={`${
-                    todo.status === 'completed' ? 'text-gray-500 dark:text-gray-400 line-through' :
-                    todo.status === 'in_progress' ? 'text-blue-600 dark:text-blue-400 font-medium' :
-                    'text-gray-700 dark:text-gray-300'
-                  }`}>
-                    {todo.description}
-                  </span>
-                </li>
-              ))}
-            </ul>
+          <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150 ${
+            allTodosCompleted ? 'border-l-4 border-l-green-500' : ''
+          }`}>
+            <button
+              onClick={() => setShowTodos(!showTodos)}
+              className={`w-full p-4 flex items-center justify-between text-left transition-colors ${
+                allTodosCompleted ? 'hover:bg-gray-50 dark:hover:bg-gray-700/50' : ''
+              }`}
+              disabled={!allTodosCompleted}
+            >
+              <div className={`flex items-center gap-2 ${
+                allTodosCompleted ? 'text-green-600 dark:text-green-400' : 'text-primary-600 dark:text-primary-400'
+              }`}>
+                <ListTodo className="w-4 h-4" />
+                <h3 className="font-semibold text-sm uppercase tracking-wider">
+                  Action Items {allTodosCompleted && `(${agentState.todos.length} Completed)`}
+                </h3>
+              </div>
+              {allTodosCompleted && (
+                showTodos ?
+                  <ChevronUp className="w-4 h-4 text-gray-500" /> :
+                  <ChevronDown className="w-4 h-4 text-gray-500" />
+              )}
+            </button>
+
+            {(!allTodosCompleted || showTodos) && (
+              <div className="px-4 pb-4">
+                <ul className="space-y-2">
+                  {agentState.todos.map((todo: TodoItem) => (
+                    <li key={todo.id} className="flex items-start gap-2 text-sm">
+                      {todo.status === 'completed' ? (
+                        <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                      ) : todo.status === 'in_progress' ? (
+                        <Loader2 className="w-4 h-4 text-blue-500 animate-spin flex-shrink-0 mt-0.5" />
+                      ) : (
+                        <Circle className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                      )}
+                      <span className={`${
+                        todo.status === 'completed' ? 'text-gray-500 dark:text-gray-400 line-through' :
+                        todo.status === 'in_progress' ? 'text-blue-600 dark:text-blue-400 font-medium' :
+                        'text-gray-700 dark:text-gray-300'
+                      }`}>
+                        {todo.description}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 
         {/* Draft Section */}
         {agentState.draft && (
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
-            <div className="flex items-center gap-2 mb-4 text-primary-600 dark:text-primary-400">
+            <div className={`flex items-center gap-2 mb-4 ${
+              agentState.currentStep === 'finished'
+                ? 'text-green-600 dark:text-green-400'
+                : 'text-primary-600 dark:text-primary-400'
+            }`}>
               <PenTool className="w-4 h-4" />
               <h3 className="font-semibold text-sm uppercase tracking-wider">Generated Draft</h3>
             </div>
-            <div className="prose dark:prose-invert prose-sm max-w-none">
+
+            {/* Action Buttons - Show when generation is complete */}
+            {agentState.currentStep === 'finished' && (
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                <button
+                  onClick={() => navigator.clipboard.writeText(agentState.draft || '')}
+                  className="px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleExport}
+                  className="px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleGenerate}
+                  className="px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            <div className="prose dark:prose-invert dark:text-[whitesmoke] prose-sm max-w-none">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{agentState.draft}</ReactMarkdown>
             </div>
           </div>
         )}
 
-        {!agentState.plan && !isGenerating && sources.length > 0 && (
+        {!hasContent && !isGenerating && sources.length > 0 && (
            <div className="flex flex-col items-center justify-center h-64 text-center p-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
              <div className="w-12 h-12 bg-primary-50 dark:bg-primary-900/20 rounded-full flex items-center justify-center mb-4">
                <Sparkles className="w-6 h-6 text-primary-600 dark:text-primary-400" />
