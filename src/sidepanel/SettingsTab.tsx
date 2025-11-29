@@ -1,200 +1,260 @@
 import { useState, useEffect } from 'react';
-import { getGeminiApiKey, setGeminiApiKey } from '@/shared/services/gemini';
+import { getAISettings, saveAISettings, DEFAULT_AI_SETTINGS } from '@/shared/services/aiService';
+import type { AISettings, AIProvider } from '@/shared/types';
+import { Sun, Moon, Check, Key, Server, Bot } from 'lucide-react';
 
 export function SettingsTab() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [aiSettings, setAiSettings] = useState<AISettings>(DEFAULT_AI_SETTINGS);
   const [saved, setSaved] = useState(false);
-  const [apiKey, setApiKey] = useState('');
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [apiKeySaved, setApiKeySaved] = useState(false);
+  const [activeProviderTab, setActiveProviderTab] = useState<AIProvider>('gemini');
 
   useEffect(() => {
-    // Load settings from storage
+    // Load settings
     chrome.storage.local.get(['settings'], (result) => {
       if (result.settings) {
         setTheme(result.settings.theme || 'light');
       }
     });
 
-    // Load API key
-    getGeminiApiKey().then((key) => {
-      if (key) {
-        setApiKey(key);
-      }
-    });
+    getAISettings().then(setAiSettings);
   }, []);
 
-  const handleSave = () => {
-    chrome.storage.local.set(
-      {
-        settings: {
-          theme,
-        },
-      },
-      () => {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
-      }
-    );
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
+  // Update active tab when settings load
+  useEffect(() => {
+    setActiveProviderTab(aiSettings.provider);
+  }, [aiSettings.provider]);
+
+  const handleSave = async () => {
+    // Save Theme
+    chrome.storage.local.set({
+      settings: { theme },
+    });
+
+    // Save AI Settings
+    // Ensure the current provider is set to the active tab if the user intends to switch
+    const newSettings = {
+      ...aiSettings,
+      provider: activeProviderTab,
+    };
+    
+    await saveAISettings(newSettings);
+    setAiSettings(newSettings);
+
+    // Apply theme immediately (optional, depending on how the app handles it)
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
-  const handleSaveApiKey = async () => {
-    try {
-      await setGeminiApiKey(apiKey);
-      setApiKeySaved(true);
-      setTimeout(() => setApiKeySaved(false), 2000);
-    } catch (error) {
-      console.error('Failed to save API key:', error);
-    }
+  const updateApiKey = (provider: AIProvider, key: string) => {
+    setAiSettings((prev) => ({
+      ...prev,
+      apiKeys: {
+        ...prev.apiKeys,
+        [provider]: key,
+      },
+    }));
+  };
+
+  const updateModel = (provider: AIProvider, model: string) => {
+    setAiSettings((prev) => ({
+      ...prev,
+      models: {
+        ...prev.models,
+        [provider]: model,
+      },
+    }));
   };
 
   return (
-    <div className="h-full overflow-y-auto p-4">
-      <div className="space-y-4 max-w-2xl">
-        {/* General Settings */}
-        <div className="card">
-          <h2 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">
-            General Settings
-          </h2>
-
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Theme
-              </label>
-              <select
-                value={theme}
-                onChange={(e) => setTheme(e.target.value as 'light' | 'dark')}
-                className="input text-sm"
-              >
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-              </select>
-            </div>
-
-            <div className="flex justify-end">
-              <button onClick={handleSave} className="btn-primary text-sm px-4 py-2">
-                {saved ? 'Saved!' : 'Save Settings'}
-              </button>
-            </div>
-          </div>
+    <div className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-900 p-6 transition-colors duration-300">
+      <div className="max-w-3xl mx-auto space-y-8">
+        
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
+          <button
+            onClick={handleSave}
+            className={`
+              flex items-center gap-2 px-6 py-2.5 rounded-full font-medium text-sm transition-all duration-300 shadow-lg
+              ${saved 
+                ? 'bg-green-500 text-white shadow-green-500/30' 
+                : 'bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-500 hover:to-primary-400 text-white shadow-primary-500/30 hover:shadow-primary-500/50 transform hover:-translate-y-0.5'
+              }
+            `}
+          >
+            {saved ? (
+              <>
+                <Check className="w-4 h-4" />
+                Saved
+              </>
+            ) : (
+              'Save Changes'
+            )}
+          </button>
         </div>
 
-        {/* API Keys Section */}
-        <div className="card">
-          <h2 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">
-            API Keys & Models
+        {/* Theme Selection */}
+        <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <span className="w-1 h-6 bg-primary-500 rounded-full"></span>
+            Appearance
           </h2>
-
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Gemini API Key
-              </label>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                Required for AI content refinement. Get your free API key from{' '}
-                <a
-                  href="https://aistudio.google.com/app/apikey"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary-600 hover:text-primary-700 underline"
-                >
-                  Google AI Studio
-                </a>
-              </p>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <input
-                    type={showApiKey ? 'text' : 'password'}
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="Enter your Gemini API key"
-                    className="input pr-10 text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showApiKey ? (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-                        />
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                        />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-                <button
-                  onClick={handleSaveApiKey}
-                  disabled={!apiKey.trim()}
-                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium"
-                >
-                  {apiKeySaved ? 'Saved!' : 'Save Key'}
-                </button>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              onClick={() => setTheme('light')}
+              className={`
+                relative group p-4 rounded-xl border-2 transition-all duration-300 flex flex-col items-center gap-3
+                ${theme === 'light'
+                  ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-900/10'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-primary-200 dark:hover:border-primary-800 bg-transparent'
+                }
+              `}
+            >
+              <div className={`
+                w-12 h-12 rounded-full flex items-center justify-center transition-colors duration-300
+                ${theme === 'light' ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}
+              `}>
+                <Sun className="w-6 h-6" />
               </div>
-              {apiKey && (
-                <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  API key configured
-                </p>
+              <span className={`font-medium ${theme === 'light' ? 'text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-400'}`}>
+                Light Mode
+              </span>
+              {theme === 'light' && (
+                <div className="absolute top-3 right-3 text-primary-500">
+                  <Check className="w-5 h-5" />
+                </div>
               )}
-            </div>
+            </button>
 
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <div className="text-xs text-blue-700">
-                  <p className="font-medium mb-1">Using Gemini 2.5 Flash</p>
-                  <p>Latest and most advanced model optimized for high-quality content transformation. Your API key is stored locally and never sent to our servers.</p>
-                </div>
+            <button
+              onClick={() => setTheme('dark')}
+              className={`
+                relative group p-4 rounded-xl border-2 transition-all duration-300 flex flex-col items-center gap-3
+                ${theme === 'dark'
+                  ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-900/10'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-primary-200 dark:hover:border-primary-800 bg-transparent'
+                }
+              `}
+            >
+              <div className={`
+                w-12 h-12 rounded-full flex items-center justify-center transition-colors duration-300
+                ${theme === 'dark' ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}
+              `}>
+                <Moon className="w-6 h-6" />
               </div>
-            </div>
+              <span className={`font-medium ${theme === 'dark' ? 'text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-400'}`}>
+                Dark Mode
+              </span>
+              {theme === 'dark' && (
+                <div className="absolute top-3 right-3 text-primary-500">
+                  <Check className="w-5 h-5" />
+                </div>
+              )}
+            </button>
           </div>
-        </div>
+        </section>
 
-        {/* Prompts Section - Placeholder */}
-        <div className="card">
-          <h2 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">
-            Prompts & Templates
+        {/* AI Provider Configuration */}
+        <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <span className="w-1 h-6 bg-purple-500 rounded-full"></span>
+            AI Provider
           </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Prompt customization will be available in future updates.
-          </p>
-        </div>
+
+          {/* Provider Tabs */}
+          <div className="flex p-1 bg-gray-100 dark:bg-gray-700/50 rounded-xl mb-8 overflow-x-auto">
+            {(['gemini', 'openai', 'groq'] as AIProvider[]).map((provider) => (
+              <button
+                key={provider}
+                onClick={() => setActiveProviderTab(provider)}
+                className={`
+                  flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-200 capitalize flex items-center justify-center gap-2
+                  ${activeProviderTab === provider
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                  }
+                `}
+              >
+                {provider === 'gemini' && <Bot className="w-4 h-4" />}
+                {provider === 'openai' && <Server className="w-4 h-4" />}
+                {provider === 'groq' && <Server className="w-4 h-4" />}
+                {provider}
+              </button>
+            ))}
+          </div>
+
+          {/* Configuration Form */}
+          <div className="space-y-6 animate-fadeIn">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <Key className="w-4 h-4 text-gray-400" />
+                API Key
+              </label>
+              <input
+                type="password"
+                value={aiSettings.apiKeys[activeProviderTab]}
+                onChange={(e) => updateApiKey(activeProviderTab, e.target.value)}
+                placeholder={`Enter your ${activeProviderTab} API key`}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none text-sm"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                Your key is stored locally and never sent to our servers.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <Server className="w-4 h-4 text-gray-400" />
+                Model
+              </label>
+              <input
+                type="text"
+                value={aiSettings.models[activeProviderTab]}
+                onChange={(e) => updateModel(activeProviderTab, e.target.value)}
+                placeholder="e.g. gpt-4o, gemini-1.5-pro"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none text-sm"
+              />
+            </div>
+
+            {activeProviderTab === 'openai' && (
+              <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  <Server className="w-4 h-4 text-gray-400" />
+                  Base URL (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={aiSettings.baseUrl || ''}
+                  onChange={(e) => setAiSettings(prev => ({ ...prev, baseUrl: e.target.value }))}
+                  placeholder="https://api.openai.com/v1"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none text-sm"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                  Useful for local LLMs (e.g. LM Studio, Ollama) compatible with OpenAI API.
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+
       </div>
     </div>
   );
 }
+

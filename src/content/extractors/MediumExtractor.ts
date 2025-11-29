@@ -8,8 +8,6 @@ export class MediumExtractor extends BaseExtractor {
   }
 
   protected extractTitle(): string {
-    // console.log('📝 Extracting title...');
-
     const title = this.querySelector([
       'h1',
       'article h1',
@@ -18,17 +16,13 @@ export class MediumExtractor extends BaseExtractor {
     ]);
 
     if (title) {
-      // console.log(`✅ Title: ${title}`);
       return title;
     }
 
-    // console.log('⚠️ Using document.title');
     return document.title;
   }
 
   protected extractAuthor(): string {
-    // console.log('👤 Extracting author...');
-
     const author = this.querySelector([
       '[data-testid="authorName"]',
       'a[rel="author"]',
@@ -37,34 +31,28 @@ export class MediumExtractor extends BaseExtractor {
     ]);
 
     if (author) {
-      // console.log(`✅ Author: ${author}`);
       return author;
     }
 
-    // console.log('⚠️ Author not found');
     return 'Unknown';
   }
 
   protected extractContent(): string {
     const article = document.querySelector('article');
-    // console.log('🔍 Looking for article tag...');
-    // console.log('Article element:', article);
 
     if (!article) {
       console.error('❌ No <article> tag found');
       return '';
     }
 
-    // console.log('✅ Found article tag');
-    // console.log('Article children count:', article.children.length);
-
     const parts: string[] = [];
     const title = this.extractTitle();
     const author = this.extractAuthor();
 
     // Query all content elements within article, not just direct children
-    const elements = article.querySelectorAll('p, h1, h2, h3, h4, h5, h6, ul, ol, pre, blockquote, figure');
-    // console.log('Processing', elements.length, 'content elements');
+    const elements = article.querySelectorAll(
+      'p, h1, h2, h3, h4, h5, h6, ul, ol, pre, blockquote, figure'
+    );
 
     for (const element of Array.from(elements)) {
       const tagName = element.tagName.toLowerCase();
@@ -102,7 +90,9 @@ export class MediumExtractor extends BaseExtractor {
         const listItems = items
           .map((li, idx) => {
             const itemText = this.cleanText(li.textContent || '');
-            return tagName === 'ul' ? `- ${itemText}` : `${idx + 1}. ${itemText}`;
+            return tagName === 'ul'
+              ? `- ${itemText}`
+              : `${idx + 1}. ${itemText}`;
           })
           .join('\n');
         parts.push(`\n${listItems}\n`);
@@ -111,9 +101,7 @@ export class MediumExtractor extends BaseExtractor {
       }
     }
 
-    // console.log('📝 Extracted', parts.length, 'content parts');
     const result = parts.join('\n');
-    // console.log('📊 Final content length:', result.length);
     return result;
   }
 
@@ -134,8 +122,6 @@ export class MediumExtractor extends BaseExtractor {
       }
     }
 
-    // console.log(`🖼️ Found ${imageUrls.length} images to convert`);
-
     const images: Record<string, string> = {};
     const conversions = imageUrls.map(async (url) => {
       const base64 = await this.fetchImageAsBase64(url);
@@ -145,7 +131,6 @@ export class MediumExtractor extends BaseExtractor {
     });
 
     await Promise.all(conversions);
-    // console.log(`✅ Converted ${Object.keys(images).length} images to base64`);
 
     return images;
   }

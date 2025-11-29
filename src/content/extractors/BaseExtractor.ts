@@ -1,21 +1,25 @@
 import type { ExtractionResult } from './types';
 
+/**
+ * Base class for all content extractors.
+ * Provides common functionality for extracting title, author, content, and images.
+ */
 export abstract class BaseExtractor {
   protected abstract platform: string;
 
+  /**
+   * Detects if the current page is supported by this extractor.
+   */
   abstract detect(): boolean;
 
+  /**
+   * Main extraction method.
+   * Orchestrates the extraction of title, author, content, and images.
+   */
   async extract(): Promise<ExtractionResult> {
-    // console.log(`🎯 Starting ${this.platform} extraction...`);
-
     const title = this.extractTitle();
-    // console.log('📝 Title:', title);
-
     const author = this.extractAuthor();
-    // console.log('👤 Author:', author);
-
     const content = this.extractContent();
-    // console.log('📄 Content length:', content.length);
 
     if (!content) {
       console.error('❌ No content extracted');
@@ -37,11 +41,7 @@ export abstract class BaseExtractor {
       images: Object.keys(images).length > 0 ? images : undefined,
     };
 
-    // console.log('\n✅ Extraction Complete!');
-    console.log('📦 Extracted Object:', result);
-    // if (images && Object.keys(images).length > 0) {
-    //   console.log(`🖼️ Images extracted: ${Object.keys(images).length}`);
-    // }
+    // console.log('📦 Extracted Object:', result);
 
     return {
       success: true,
@@ -53,10 +53,20 @@ export abstract class BaseExtractor {
   protected abstract extractAuthor(): string;
   protected abstract extractContent(): string;
 
+  /**
+   * Cleans text by removing extra whitespace and normalizing newlines.
+   */
   protected cleanText(text: string): string {
-    return text.replace(/\s+/g, ' ').replace(/\n\s*\n/g, '\n').trim();
+    return text
+      .replace(/\s+/g, ' ')
+      .replace(/\n\s*\n/g, '\n')
+      .trim();
   }
 
+  /**
+   * Helper to query a selector from a list of potential selectors.
+   * Returns the text content of the first match.
+   */
   protected querySelector(selectors: string[]): string {
     for (const selector of selectors) {
       const element = document.querySelector(selector);

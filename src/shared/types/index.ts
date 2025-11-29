@@ -42,7 +42,25 @@ export interface Settings {
   initialized: boolean;
 }
 
+export type AIProvider = 'gemini' | 'openai' | 'groq';
+
+export interface AISettings {
+  provider: AIProvider;
+  apiKeys: {
+    gemini: string;
+    openai: string;
+    groq: string;
+  };
+  models: {
+    gemini: string;
+    openai: string;
+    groq: string;
+  };
+  baseUrl?: string; // For local/custom OpenAI compatible endpoints
+}
+
 export interface StorageData {
   settings?: Settings;
+  aiSettings?: AISettings;
   sources?: SourceContent[];
 }
