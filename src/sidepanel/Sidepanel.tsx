@@ -1,11 +1,12 @@
 import { useState, useCallback } from 'react';
 import { SourcesTab } from './SourcesTab';
 import { SettingsTab } from './SettingsTab';
+import { GenerateTab } from './GenerateTab';
 import { sourceStorage } from '@/shared/utils/storage';
 import type { SourceContent } from '@/shared/types';
 import type { ExtractedContent } from '@/content/extractors/types';
 
-type Tab = 'sources' | 'generate' | 'chat' | 'settings';
+type Tab = 'sources' | 'generate' | 'settings';
 
 function Sidepanel() {
   const [activeTab, setActiveTab] = useState<Tab>('sources');
@@ -16,7 +17,6 @@ function Sidepanel() {
   const tabs: { id: Tab; label: string }[] = [
     { id: 'sources', label: 'Sources' },
     { id: 'generate', label: 'Generate' },
-    { id: 'chat', label: 'Chat' },
     { id: 'settings', label: 'Settings' },
   ];
 
@@ -163,36 +163,7 @@ function Sidepanel() {
           <SourcesTab key={refreshKey} onRefresh={handleRefresh} />
         )}
 
-        {activeTab === 'generate' && (
-          <div className="h-full overflow-y-auto p-4">
-            <div className="space-y-4">
-              <div className="card">
-                <h2 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                  Generate Blog
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Blog generation will be available in BLOG-005 (Deep Agent
-                  Pattern Engine).
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'chat' && (
-          <div className="h-full overflow-y-auto p-4">
-            <div className="space-y-4">
-              <div className="card">
-                <h2 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                  Chat Refinement
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Chat-based content refinement will be available in BLOG-007.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+        {activeTab === 'generate' && <GenerateTab />}
 
         {activeTab === 'settings' && <SettingsTab />}
       </div>
