@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { SourcesTab } from './SourcesTab';
 import { SettingsTab } from './SettingsTab';
 import { GenerateTab } from './GenerateTab';
 import { sourceStorage } from '@/shared/utils/storage';
 import type { SourceContent } from '@/shared/types';
 import type { ExtractedContent } from '@/content/extractors/types';
+import type { BlogAgentState } from '@/agent/blogAgent';
 
 type Tab = 'sources' | 'generate' | 'settings';
 
@@ -13,6 +14,26 @@ function Sidepanel() {
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractionError, setExtractionError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Persistent state for GenerateTab
+  const [sources, setSources] = useState<SourceContent[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [agentState, setAgentState] = useState<Partial<BlogAgentState>>({
+    currentStep: 'analyzing_sources',
+    sourceAnalysis: '',
+    plan: '',
+    todos: [],
+    draft: '',
+  });
+
+  // Load sources on mount and when refreshKey changes
+  useEffect(() => {
+    const loadSources = async () => {
+      const storedSources = await sourceStorage.getAll();
+      setSources(storedSources);
+    };
+    loadSources();
+  }, [refreshKey]);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'sources', label: 'Sources' },
@@ -163,7 +184,15 @@ function Sidepanel() {
           <SourcesTab key={refreshKey} onRefresh={handleRefresh} />
         )}
 
-        {activeTab === 'generate' && <GenerateTab />}
+        {activeTab === 'generate' && (
+          <GenerateTab
+            sources={sources}
+            isGenerating={isGenerating}
+            agentState={agentState}
+            onGeneratingChange={setIsGenerating}
+            onAgentStateChange={setAgentState}
+          />
+        )}
 
         {activeTab === 'settings' && <SettingsTab />}
       </div>

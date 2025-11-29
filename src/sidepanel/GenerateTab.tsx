@@ -1,36 +1,29 @@
-import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Sparkles, CheckCircle2, Loader2, Search, FileText, ListTodo, PenTool, Circle } from 'lucide-react';
 import { blogAgent, BlogAgentState, TodoItem } from '@/agent/blogAgent';
-import { sourceStorage } from '@/shared/utils/storage';
 import { SourceContent } from '@/shared/types';
 
-export function GenerateTab() {
-  const [sources, setSources] = useState<SourceContent[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [agentState, setAgentState] = useState<Partial<BlogAgentState>>({
-    currentStep: 'analyzing_sources',
-    sourceAnalysis: '',
-    plan: '',
-    todos: [],
-    draft: '',
-  });
+interface GenerateTabProps {
+  sources: SourceContent[];
+  isGenerating: boolean;
+  agentState: Partial<BlogAgentState>;
+  onGeneratingChange: (isGenerating: boolean) => void;
+  onAgentStateChange: (state: Partial<BlogAgentState>) => void;
+}
 
-  useEffect(() => {
-    loadSources();
-  }, []);
-
-  const loadSources = async () => {
-    const storedSources = await sourceStorage.getAll();
-    setSources(storedSources);
-  };
-
+export function GenerateTab({
+  sources,
+  isGenerating,
+  agentState,
+  onGeneratingChange,
+  onAgentStateChange,
+}: GenerateTabProps) {
   const handleGenerate = async () => {
     if (sources.length === 0) return;
 
-    setIsGenerating(true);
-    setAgentState({
+    onGeneratingChange(true);
+    onAgentStateChange({
       currentStep: 'analyzing_sources',
       sourceAnalysis: '',
       plan: '',
@@ -47,22 +40,22 @@ export function GenerateTab() {
         const nodeName = Object.keys(chunk)[0];
         const update = (chunk as any)[nodeName] as Partial<BlogAgentState>;
 
-        setAgentState((prev) => ({
-          ...prev,
+        onAgentStateChange({
+          ...agentState,
           ...update,
-        }));
+        });
       }
 
-      setAgentState((prev) => ({ ...prev, currentStep: 'finished' }));
+      onAgentStateChange({ ...agentState, currentStep: 'finished' });
     } catch (error) {
       console.error('Generation failed:', error);
-      setAgentState((prev) => ({
-        ...prev,
+      onAgentStateChange({
+        ...agentState,
         error: error instanceof Error ? error.message : 'Generation failed',
         partialResults: true,
-      }));
+      });
     } finally {
-      setIsGenerating(false);
+      onGeneratingChange(false);
     }
   };
 
