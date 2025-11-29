@@ -30,9 +30,11 @@ export class GenericExtractor extends BaseExtractor {
 
     const parts: string[] = [];
     const title = this.extractTitle();
-    const children = Array.from(mainContent.querySelectorAll(
-      'p, h1, h2, h3, h4, h5, h6, ul, ol, pre, blockquote, div, figure, img'
-    ));
+    const children = Array.from(
+      mainContent.querySelectorAll(
+        'p, h1, h2, h3, h4, h5, h6, ul, ol, pre, blockquote, div, figure, img'
+      )
+    );
 
     for (const element of children) {
       const tagName = element.tagName.toLowerCase();
@@ -67,7 +69,9 @@ export class GenericExtractor extends BaseExtractor {
         const listItems = items
           .map((li, idx) => {
             const itemText = this.cleanText(li.textContent || '');
-            return tagName === 'ul' ? `- ${itemText}` : `${idx + 1}. ${itemText}`;
+            return tagName === 'ul'
+              ? `- ${itemText}`
+              : `${idx + 1}. ${itemText}`;
           })
           .join('\n');
         parts.push(`\n${listItems}\n`);
@@ -75,9 +79,19 @@ export class GenericExtractor extends BaseExtractor {
         parts.push(this.cleanText(text) + '\n');
       } else if (tagName === 'div') {
         const hasBlockChildren = Array.from(element.children).some((child) =>
-          ['P', 'UL', 'OL', 'PRE', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(
-            child.tagName
-          )
+          [
+            'P',
+            'UL',
+            'OL',
+            'PRE',
+            'BLOCKQUOTE',
+            'H1',
+            'H2',
+            'H3',
+            'H4',
+            'H5',
+            'H6',
+          ].includes(child.tagName)
         );
         if (!hasBlockChildren && text.length > 20) {
           parts.push(this.cleanText(text) + '\n');
@@ -102,8 +116,6 @@ export class GenericExtractor extends BaseExtractor {
       }
     }
 
-    // console.log(`🖼️ Found ${imageUrls.length} images to convert`);
-
     const images: Record<string, string> = {};
     const conversions = imageUrls.map(async (url) => {
       const base64 = await this.fetchImageAsBase64(url);
@@ -113,7 +125,6 @@ export class GenericExtractor extends BaseExtractor {
     });
 
     await Promise.all(conversions);
-    // console.log(`✅ Converted ${Object.keys(images).length} images to base64`);
 
     return images;
   }
@@ -146,7 +157,15 @@ export class GenericExtractor extends BaseExtractor {
   }
 
   private shouldSkipElement(element: Element): boolean {
-    const skipClasses = ['nav', 'header', 'footer', 'sidebar', 'menu', 'ad', 'comment'];
+    const skipClasses = [
+      'nav',
+      'header',
+      'footer',
+      'sidebar',
+      'menu',
+      'ad',
+      'comment',
+    ];
     const className = element.className.toLowerCase();
     return skipClasses.some((skip) => className.includes(skip));
   }

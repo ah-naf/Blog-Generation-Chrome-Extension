@@ -1,10 +1,10 @@
 // Background Service Worker for Chrome Extension
-console.log('AI Content Generator - Background Service Worker Initialized');
+// console.log('AI Content Generator - Background Service Worker Initialized');
 
 // Listen for extension installation
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
-    console.log('Extension installed');
+    // console.log('Extension installed');
     // Initialize default settings
     chrome.storage.local.set({
       settings: {
@@ -14,7 +14,7 @@ chrome.runtime.onInstalled.addListener((details) => {
       sources: [],
     });
   } else if (details.reason === 'update') {
-    console.log('Extension updated');
+    // console.log('Extension updated');
   }
 });
 
@@ -27,7 +27,7 @@ chrome.action.onClicked.addListener((tab) => {
 
 // Listen for messages from content scripts or sidepanel
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  console.log('Message received:', message);
+  // console.log('Message received:', message);
 
   if (message.type === 'OPEN_SIDEPANEL') {
     // Open side panel for the current tab
@@ -59,7 +59,7 @@ chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
     );
 
     if (isSupported) {
-      console.log('Supported platform detected:', tab.url);
+      // console.log('Supported platform detected:', tab.url);
       // Future: Show page action or badge
     }
   }

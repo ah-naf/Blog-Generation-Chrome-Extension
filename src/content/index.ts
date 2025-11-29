@@ -1,8 +1,5 @@
 import { BaseExtractor, MediumExtractor, GenericExtractor } from './extractors';
 
-// console.log('🚀 AI Content Generator - Content Script Loaded');
-// console.log('📍 Current URL:', window.location.href);
-
 const extractors: BaseExtractor[] = [
   new MediumExtractor(),
   new GenericExtractor(),
@@ -10,19 +7,14 @@ const extractors: BaseExtractor[] = [
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'EXTRACT_CONTENT') {
-    // console.log('📨 Received extraction request');
-
     (async () => {
       try {
         const extractor = extractors.find((e) => e.detect());
 
         if (extractor) {
-          // console.log('✅ Found extractor:', extractor.constructor.name);
           const result = await extractor.extract();
-          // console.log('📤 Sending result:', result);
           sendResponse(result);
         } else {
-          console.log('⚠️ No extractor found for this page');
           sendResponse({
             success: false,
             error: 'No extractor available for this platform',
@@ -40,10 +32,5 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   return true;
 });
-
-// const detectedExtractor = extractors.find((e) => e.detect());
-// if (detectedExtractor) {
-//   console.log('🎯 Platform detected:', detectedExtractor.constructor.name);
-// }
 
 export {};
