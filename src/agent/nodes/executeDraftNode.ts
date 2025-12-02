@@ -13,7 +13,7 @@ export async function* executeDraftNode(
     const todo = todos[i];
 
     // Mark as in progress
-    updatedTodos = updatedTodos.map(t =>
+    updatedTodos = updatedTodos.map((t) =>
       t.id === todo.id ? { ...t, status: 'in_progress' as const } : t
     );
 
@@ -112,7 +112,7 @@ Write the complete section now.`;
       draftContent += (draftContent ? '\n\n' : '') + sectionContent;
 
       // Mark as completed
-      updatedTodos = updatedTodos.map(t =>
+      updatedTodos = updatedTodos.map((t) =>
         t.id === todo.id
           ? { ...t, status: 'completed' as const, result: sectionContent }
           : t
@@ -124,10 +124,9 @@ Write the complete section now.`;
         todos: updatedTodos,
         draft: draftContent.trim(),
       };
-
     } catch (error) {
       // Mark as pending (failed), continue with next
-      updatedTodos = updatedTodos.map(t =>
+      updatedTodos = updatedTodos.map((t) =>
         t.id === todo.id ? { ...t, status: 'pending' as const } : t
       );
 
@@ -141,9 +140,9 @@ Write the complete section now.`;
     }
   }
 
-  // Final state
+  // Final state - remain in executing_draft so we can transition to refining
   yield {
-    currentStep: 'finished',
+    currentStep: 'executing_draft',
     todos: updatedTodos,
     draft: draftContent.trim(),
   };

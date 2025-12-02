@@ -9,7 +9,7 @@ export interface TodoItem {
 
 export interface BlogAgentState {
   sources: SourceContent[];
-  currentStep: 'analyzing_sources' | 'creating_plan' | 'creating_todos' | 'executing_draft' | 'finished';
+  currentStep: 'analyzing_sources' | 'creating_plan' | 'creating_todos' | 'executing_draft' | 'refining' | 'finished';
   currentTodo?: string;
   sourceAnalysis: string;
   plan: string;
@@ -17,4 +17,11 @@ export interface BlogAgentState {
   draft: string;
   error?: string;
   partialResults?: boolean;
+}
+
+export interface AgentCheckpoint {
+  id: string;
+  state: BlogAgentState;
+  timestamp: number;
+  lastUpdated: number;
 }

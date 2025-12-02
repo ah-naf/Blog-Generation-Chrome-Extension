@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Sparkles, CheckCircle2, Loader2, Search, FileText, ListTodo, PenTool, Circle, ChevronDown, ChevronUp, Copy, Download, RefreshCw } from 'lucide-react';
+import { Sparkles, CheckCircle2, Loader2, Search, FileText, ListTodo, PenTool, Circle, ChevronDown, ChevronUp, Copy, Download, RefreshCw, PlayCircle, Wand2 } from 'lucide-react';
 import { blogAgent, BlogAgentState, TodoItem } from '@/agent/blogAgent';
 import { SourceContent } from '@/shared/types';
+import { checkpointStorage } from '@/shared/utils/storage';
 
 interface GenerateTabProps {
   sources: SourceContent[];
@@ -22,10 +23,32 @@ export function GenerateTab({
 }: GenerateTabProps) {
   const [showTodos, setShowTodos] = useState(true);
   const [showPlan, setShowPlan] = useState(false);
+  const [hasCheckpoint, setHasCheckpoint] = useState(false);
 
   // Check if all todos are completed
   const allTodosCompleted = agentState.todos && agentState.todos.length > 0 &&
     agentState.todos.every(todo => todo.status === 'completed');
+
+  // Check for checkpoint on mount
+  useEffect(() => {
+    const checkForCheckpoint = async () => {
+      const hasValid = await checkpointStorage.hasValidCheckpoint();
+      
+      // If we have a valid checkpoint, check if it's finished
+      if (hasValid) {
+        const checkpoint = await checkpointStorage.get();
+        if (checkpoint && checkpoint.state.currentStep === 'finished') {
+          // Restore finished state immediately
+          onAgentStateChange(checkpoint.state);
+          setHasCheckpoint(false); // Don't show resume banner
+          return;
+        }
+      }
+      
+      setHasCheckpoint(hasValid);
+    };
+    checkForCheckpoint();
+  }, []);
 
   // Automatically collapse todos and plan when all are completed
   useEffect(() => {
@@ -37,6 +60,10 @@ export function GenerateTab({
 
   const handleGenerate = async () => {
     if (sources.length === 0) return;
+
+    // Clear any existing checkpoint when starting new generation
+    await checkpointStorage.clear();
+    setHasCheckpoint(false);
 
     onGeneratingChange(true);
 
@@ -91,6 +118,76 @@ export function GenerateTab({
     handleGenerate();
   };
 
+  const handleResume = async () => {
+    const checkpoint = await checkpointStorage.get();
+    if (!checkpoint) return;
+
+    // Restore state from checkpoint
+    onAgentStateChange(checkpoint.state);
+    setHasCheckpoint(false);
+
+    // Continue generation from where it left off
+    onGeneratingChange(true);
+
+    try {
+      // Re-run from current step based on checkpoint state
+      const currentState = checkpoint.state;
+      const inputs = { sources: currentState.sources };
+      const stream = await blogAgent.stream(inputs);
+
+      // Skip to the current step by consuming the stream up to that point
+      let isResuming = true;
+      for await (const chunk of stream) {
+        const nodeName = Object.keys(chunk)[0];
+        const update = (chunk as any)[nodeName] as Partial<BlogAgentState>;
+
+        // If we're resuming and haven't caught up to checkpoint yet, skip updates
+        if (isResuming) {
+          // Check if we've caught up by comparing steps
+          const stepOrder = ['analyzing_sources', 'creating_plan', 'creating_todos', 'executing_draft', 'refining', 'finished'];
+          const checkpointStepIndex = stepOrder.indexOf(currentState.currentStep);
+          const currentStepIndex = stepOrder.indexOf(update.currentStep || 'analyzing_sources');
+
+          if (currentStepIndex >= checkpointStepIndex) {
+            isResuming = false;
+          } else {
+            continue; // Skip this update
+          }
+        }
+
+        onAgentStateChange({
+          ...currentState,
+          ...update,
+        });
+      }
+    } catch (error) {
+      console.error('Resume failed:', error);
+      onAgentStateChange({
+        ...checkpoint.state,
+        error: error instanceof Error ? error.message : 'Resume failed',
+        partialResults: true,
+      });
+    } finally {
+      onGeneratingChange(false);
+      setHasCheckpoint(false);
+    }
+  };
+
+  const handleDiscardCheckpoint = async () => {
+    await checkpointStorage.clear();
+    setHasCheckpoint(false);
+    // Reset agent state to initial
+    onAgentStateChange({
+      currentStep: undefined,
+      sourceAnalysis: '',
+      plan: '',
+      todos: [],
+      draft: '',
+      error: undefined,
+      partialResults: false,
+    });
+  };
+
   const handleExport = () => {
     const blob = new Blob([agentState.draft || ''], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
@@ -108,10 +205,11 @@ export function GenerateTab({
     { id: 'creating_plan', labelActive: 'Planning', labelCompleted: 'Planned', icon: FileText },
     { id: 'creating_todos', labelActive: 'Creating Tasks', labelCompleted: 'Tasks Created', icon: ListTodo },
     { id: 'executing_draft', labelActive: 'Writing', labelCompleted: 'Written', icon: PenTool },
+    { id: 'refining', labelActive: 'Refining', labelCompleted: 'Refined', icon: Wand2 },
   ];
 
   const getStepStatus = (stepId: string) => {
-    const stepOrder = ['analyzing_sources', 'creating_plan', 'creating_todos', 'executing_draft', 'finished'];
+    const stepOrder = ['analyzing_sources', 'creating_plan', 'creating_todos', 'executing_draft', 'refining', 'finished'];
     const currentIndex = stepOrder.indexOf(agentState.currentStep || 'analyzing_sources');
     const stepIndex = stepOrder.indexOf(stepId);
 
@@ -142,6 +240,8 @@ export function GenerateTab({
           return `Writing: ${currentTodo?.description || 'draft section'}`;
         }
         return 'Writing draft...';
+      case 'refining':
+        return 'Polishing grammar, flow, and overall quality...';
       default:
         return 'Processing...';
     }
@@ -153,6 +253,40 @@ export function GenerateTab({
   return (
     <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+        {/* Resume Banner */}
+        {hasCheckpoint && !isGenerating && (
+          <div className="mb-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <PlayCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                    Previous generation found
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
+                    You have an unfinished blog generation. Resume to continue where you left off.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleResume}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <PlayCircle className="w-4 h-4" />
+                  Resume
+                </button>
+                <button
+                  onClick={handleDiscardCheckpoint}
+                  className="px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg transition-colors"
+                >
+                  Discard
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Generate Blog</h2>
@@ -355,20 +489,32 @@ export function GenerateTab({
                 <button
                   onClick={() => navigator.clipboard.writeText(agentState.draft || '')}
                   className="px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg transition-colors flex items-center gap-2"
+                  title="Copy to clipboard"
                 >
                   <Copy className="w-4 h-4" />
                 </button>
                 <button
                   onClick={handleExport}
                   className="px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg transition-colors flex items-center gap-2"
+                  title="Export as Markdown"
                 >
                   <Download className="w-4 h-4" />
                 </button>
                 <button
                   onClick={handleGenerate}
                   className="px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg transition-colors flex items-center gap-2"
+                  title="Regenerate"
                 >
                   <RefreshCw className="w-4 h-4" />
+                </button>
+                <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1" />
+                <button
+                  onClick={handleDiscardCheckpoint}
+                  className="px-3 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-700 dark:text-red-300 text-sm rounded-lg transition-colors flex items-center gap-2"
+                  title="Clear state and start over"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>New Draft</span>
                 </button>
               </div>
             )}

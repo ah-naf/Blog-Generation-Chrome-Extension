@@ -63,4 +63,5 @@ export interface StorageData {
   settings?: Settings;
   aiSettings?: AISettings;
   sources?: SourceContent[];
+  agentCheckpoint?: any; // Will store AgentCheckpoint from @/agent/types
 }

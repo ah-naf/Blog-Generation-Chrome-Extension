@@ -1,4 +1,5 @@
 import type { StorageData, SourceContent } from '@/shared/types';
+import type { AgentCheckpoint } from '@/agent/types';
 
 /**
  * Utility functions for Chrome storage
@@ -151,5 +152,46 @@ export const sourceStorage = {
         await storage.set('sources', sources);
       }
     }
+  },
+};
+
+/**
+ * Agent checkpoint management utilities
+ */
+export const checkpointStorage = {
+  /**
+   * Save a checkpoint
+   */
+  async save(checkpoint: AgentCheckpoint): Promise<void> {
+    await storage.set('agentCheckpoint', checkpoint);
+  },
+
+  /**
+   * Get the current checkpoint
+   */
+  async get(): Promise<AgentCheckpoint | undefined> {
+    return await storage.get('agentCheckpoint');
+  },
+
+  /**
+   * Check if a valid checkpoint exists (not finished and less than 1 hour old)
+   */
+  async hasValidCheckpoint(): Promise<boolean> {
+    const checkpoint = await this.get();
+    if (!checkpoint) return false;
+
+    // Don't show resume for finished states - actually we DO want to show them now
+    // if (checkpoint.state.currentStep === 'finished') return false;
+
+    // Check if checkpoint is less than 1 hour old
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    return checkpoint.lastUpdated > oneHourAgo;
+  },
+
+  /**
+   * Clear the checkpoint
+   */
+  async clear(): Promise<void> {
+    await storage.remove('agentCheckpoint');
   },
 };
