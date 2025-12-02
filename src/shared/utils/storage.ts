@@ -1,5 +1,4 @@
-import type { StorageData, SourceContent } from '@/shared/types';
-import type { AgentCheckpoint } from '@/agent/types';
+import type { StorageData, SourceContent, GenerationState } from '@/shared/types';
 
 /**
  * Utility functions for Chrome storage
@@ -156,42 +155,39 @@ export const sourceStorage = {
 };
 
 /**
- * Agent checkpoint management utilities
+ * Generation state management utilities
  */
-export const checkpointStorage = {
+export const generationStateStorage = {
   /**
-   * Save a checkpoint
+   * Save the current generation state
    */
-  async save(checkpoint: AgentCheckpoint): Promise<void> {
-    await storage.set('agentCheckpoint', checkpoint);
+  async save(agentState: GenerationState['agentState']): Promise<void> {
+    const state: GenerationState = {
+      agentState,
+      timestamp: new Date().toISOString(),
+    };
+    await storage.set('generationState', state);
   },
 
   /**
-   * Get the current checkpoint
+   * Load the saved generation state
    */
-  async get(): Promise<AgentCheckpoint | undefined> {
-    return await storage.get('agentCheckpoint');
+  async load(): Promise<GenerationState | undefined> {
+    return await storage.get('generationState');
   },
 
   /**
-   * Check if a valid checkpoint exists (not finished and less than 1 hour old)
-   */
-  async hasValidCheckpoint(): Promise<boolean> {
-    const checkpoint = await this.get();
-    if (!checkpoint) return false;
-
-    // Don't show resume for finished states - actually we DO want to show them now
-    // if (checkpoint.state.currentStep === 'finished') return false;
-
-    // Check if checkpoint is less than 1 hour old
-    const oneHourAgo = Date.now() - 60 * 60 * 1000;
-    return checkpoint.lastUpdated > oneHourAgo;
-  },
-
-  /**
-   * Clear the checkpoint
+   * Clear the saved generation state
    */
   async clear(): Promise<void> {
-    await storage.remove('agentCheckpoint');
+    await storage.remove('generationState');
+  },
+
+  /**
+   * Check if there is a saved state
+   */
+  async hasSavedState(): Promise<boolean> {
+    const state = await this.load();
+    return !!state?.agentState;
   },
 };

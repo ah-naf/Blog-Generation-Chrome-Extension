@@ -59,9 +59,28 @@ export interface AISettings {
   baseUrl?: string; // For local/custom OpenAI compatible endpoints
 }
 
+export interface GenerationState {
+  agentState?: {
+    currentStep?: 'analyzing_sources' | 'creating_plan' | 'creating_todos' | 'executing_draft' | 'refining' | 'finished';
+    sourceAnalysis?: string;
+    plan?: string;
+    todos?: Array<{
+      id: string;
+      description: string;
+      status: 'pending' | 'in_progress' | 'completed';
+      result?: string;
+    }>;
+    draft?: string;
+    error?: string;
+    partialResults?: boolean;
+    currentTodo?: string;
+  };
+  timestamp?: string;
+}
+
 export interface StorageData {
   settings?: Settings;
   aiSettings?: AISettings;
   sources?: SourceContent[];
-  agentCheckpoint?: any; // Will store AgentCheckpoint from @/agent/types
+  generationState?: GenerationState;
 }

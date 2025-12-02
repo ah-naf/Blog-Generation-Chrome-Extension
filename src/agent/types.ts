@@ -18,10 +18,3 @@ export interface BlogAgentState {
   error?: string;
   partialResults?: boolean;
 }
-
-export interface AgentCheckpoint {
-  id: string;
-  state: BlogAgentState;
-  timestamp: number;
-  lastUpdated: number;
-}

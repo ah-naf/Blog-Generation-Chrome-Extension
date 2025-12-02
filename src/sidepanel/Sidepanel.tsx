@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { SourcesTab } from './SourcesTab';
 import { SettingsTab } from './SettingsTab';
 import { GenerateTab } from './GenerateTab';
-import { sourceStorage } from '@/shared/utils/storage';
+import { sourceStorage, generationStateStorage } from '@/shared/utils/storage';
 import type { SourceContent } from '@/shared/types';
 import type { ExtractedContent } from '@/content/extractors/types';
 import type { BlogAgentState } from '@/agent/blogAgent';
@@ -34,6 +34,21 @@ function Sidepanel() {
     };
     loadSources();
   }, [refreshKey]);
+
+  // Add beforeunload warning if there's generated content
+  useEffect(() => {
+    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+      const hasSavedState = await generationStateStorage.hasSavedState();
+      if (hasSavedState) {
+        e.preventDefault();
+        e.returnValue = 'You have generated content that will be lost. Are you sure you want to close?';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'sources', label: 'Sources' },
