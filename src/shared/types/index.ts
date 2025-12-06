@@ -1,4 +1,5 @@
 // Common types used across the extension
+export * from './promptTypes';
 
 export type Platform =
   | 'udemy'
@@ -61,7 +62,15 @@ export interface AISettings {
 
 export interface GenerationState {
   agentState?: {
-    currentStep?: 'analyzing_sources' | 'creating_plan' | 'creating_todos' | 'executing_draft' | 'refining' | 'evaluating' | 'optimizing' | 'finished';
+    currentStep?:
+      | 'analyzing_sources'
+      | 'creating_plan'
+      | 'creating_todos'
+      | 'executing_draft'
+      | 'refining'
+      | 'evaluating'
+      | 'optimizing'
+      | 'finished';
     sourceAnalysis?: string;
     plan?: string;
     todos?: Array<{
