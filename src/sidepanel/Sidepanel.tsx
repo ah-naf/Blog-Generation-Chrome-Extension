@@ -1,11 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { SourcesTab } from './SourcesTab';
 import { SettingsTab } from './SettingsTab';
-import { sourceStorage } from '@/shared/utils/storage';
+import { GenerateTab } from './GenerateTab';
+import { sourceStorage, generationStateStorage } from '@/shared/utils/storage';
 import type { SourceContent } from '@/shared/types';
 import type { ExtractedContent } from '@/content/extractors/types';
+import type { BlogAgentState } from '@/agent/blogAgent';
 
-type Tab = 'sources' | 'generate' | 'chat' | 'settings';
+type Tab = 'sources' | 'generate' | 'settings';
 
 function Sidepanel() {
   const [activeTab, setActiveTab] = useState<Tab>('sources');
@@ -13,10 +15,44 @@ function Sidepanel() {
   const [extractionError, setExtractionError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // Persistent state for GenerateTab
+  const [sources, setSources] = useState<SourceContent[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [agentState, setAgentState] = useState<Partial<BlogAgentState>>({
+    currentStep: 'analyzing_sources',
+    sourceAnalysis: '',
+    plan: '',
+    todos: [],
+    draft: '',
+  });
+
+  // Load sources on mount and when refreshKey changes
+  useEffect(() => {
+    const loadSources = async () => {
+      const storedSources = await sourceStorage.getAll();
+      setSources(storedSources);
+    };
+    loadSources();
+  }, [refreshKey]);
+
+  // Add beforeunload warning if there's generated content
+  useEffect(() => {
+    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+      const hasSavedState = await generationStateStorage.hasSavedState();
+      if (hasSavedState) {
+        e.preventDefault();
+        e.returnValue = 'You have generated content that will be lost. Are you sure you want to close?';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
   const tabs: { id: Tab; label: string }[] = [
     { id: 'sources', label: 'Sources' },
     { id: 'generate', label: 'Generate' },
-    { id: 'chat', label: 'Chat' },
     { id: 'settings', label: 'Settings' },
   ];
 
@@ -164,34 +200,13 @@ function Sidepanel() {
         )}
 
         {activeTab === 'generate' && (
-          <div className="h-full overflow-y-auto p-4">
-            <div className="space-y-4">
-              <div className="card">
-                <h2 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                  Generate Blog
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Blog generation will be available in BLOG-005 (Deep Agent
-                  Pattern Engine).
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'chat' && (
-          <div className="h-full overflow-y-auto p-4">
-            <div className="space-y-4">
-              <div className="card">
-                <h2 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                  Chat Refinement
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Chat-based content refinement will be available in BLOG-007.
-                </p>
-              </div>
-            </div>
-          </div>
+          <GenerateTab
+            sources={sources}
+            isGenerating={isGenerating}
+            agentState={agentState}
+            onGeneratingChange={setIsGenerating}
+            onAgentStateChange={setAgentState}
+          />
         )}
 
         {activeTab === 'settings' && <SettingsTab />}

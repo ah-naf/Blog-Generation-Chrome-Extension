@@ -1,4 +1,4 @@
-import type { StorageData, SourceContent } from '@/shared/types';
+import type { StorageData, SourceContent, GenerationState } from '@/shared/types';
 
 /**
  * Utility functions for Chrome storage
@@ -151,5 +151,43 @@ export const sourceStorage = {
         await storage.set('sources', sources);
       }
     }
+  },
+};
+
+/**
+ * Generation state management utilities
+ */
+export const generationStateStorage = {
+  /**
+   * Save the current generation state
+   */
+  async save(agentState: GenerationState['agentState']): Promise<void> {
+    const state: GenerationState = {
+      agentState,
+      timestamp: new Date().toISOString(),
+    };
+    await storage.set('generationState', state);
+  },
+
+  /**
+   * Load the saved generation state
+   */
+  async load(): Promise<GenerationState | undefined> {
+    return await storage.get('generationState');
+  },
+
+  /**
+   * Clear the saved generation state
+   */
+  async clear(): Promise<void> {
+    await storage.remove('generationState');
+  },
+
+  /**
+   * Check if there is a saved state
+   */
+  async hasSavedState(): Promise<boolean> {
+    const state = await this.load();
+    return !!state?.agentState;
   },
 };
