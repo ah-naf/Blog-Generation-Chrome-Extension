@@ -271,6 +271,7 @@ export function TemplateGallery({ theme = 'dark' }: TemplateGalleryProps) {
               template={{ ...selectedTemplate, templateText: editingText }}
               onChange={setEditingText}
               theme={theme}
+              isEditing={isEditing}
             />
           </>
         ) : (
