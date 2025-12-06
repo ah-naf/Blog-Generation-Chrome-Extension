@@ -61,7 +61,7 @@ export interface AISettings {
 
 export interface GenerationState {
   agentState?: {
-    currentStep?: 'analyzing_sources' | 'creating_plan' | 'creating_todos' | 'executing_draft' | 'refining' | 'finished';
+    currentStep?: 'analyzing_sources' | 'creating_plan' | 'creating_todos' | 'executing_draft' | 'refining' | 'evaluating' | 'optimizing' | 'finished';
     sourceAnalysis?: string;
     plan?: string;
     todos?: Array<{
@@ -74,6 +74,21 @@ export interface GenerationState {
     error?: string;
     partialResults?: boolean;
     currentTodo?: string;
+    evaluation?: {
+      overallScore: number;
+      scores: Array<{
+        criterion: string;
+        score: number;
+        feedback: string;
+        suggestions?: string[];
+      }>;
+      passThreshold: boolean;
+      iteration: number;
+      timestamp: string;
+    };
+    optimizationIteration?: number;
+    maxIterations?: number;
+    previousDrafts?: string[];
   };
   timestamp?: string;
 }

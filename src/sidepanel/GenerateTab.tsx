@@ -10,6 +10,7 @@ import { ApiKeyWarning } from './components/ApiKeyWarning';
 import { CollapsibleSection } from './components/CollapsibleSection';
 import { TodoList } from './components/TodoList';
 import { DraftActions } from './components/DraftActions';
+import { EvaluationFeedback } from './components/EvaluationFeedback';
 import { getCurrentActivityMessage, exportDraft } from './utils/generationHelpers';
 import { generationStateStorage } from '@/shared/utils/storage';
 
@@ -245,6 +246,13 @@ export function GenerateTab({
           >
             <TodoList todos={agentState.todos} />
           </CollapsibleSection>
+        )}
+
+        {/* Evaluation Feedback Section */}
+        {agentState.evaluation && (
+          <div className="animate-in fade-in slide-in-from-bottom-2">
+            <EvaluationFeedback evaluation={agentState.evaluation} />
+          </div>
         )}
 
         {/* Generated Draft Section */}

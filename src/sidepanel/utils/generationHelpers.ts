@@ -16,6 +16,10 @@ export function getCurrentActivityMessage(agentState: Partial<BlogAgentState>): 
       return 'Writing draft...';
     case 'refining':
       return 'Polishing grammar, flow, and overall quality...';
+    case 'evaluating':
+      return `Evaluating content quality (Iteration ${agentState.optimizationIteration || 1})...`;
+    case 'optimizing':
+      return `Optimizing based on feedback (Iteration ${agentState.optimizationIteration || 1})...`;
     default:
       return 'Processing...';
   }

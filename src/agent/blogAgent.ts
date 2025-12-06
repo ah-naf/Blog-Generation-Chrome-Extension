@@ -6,7 +6,11 @@ import {
   createTodosNode,
   executeDraftNode,
   refinementNode,
+  evaluatorNode,
+  optimizerNode,
 } from './nodes';
+
+const MAX_OPTIMIZATION_ITERATIONS = 2; // Maximum optimization cycles
 
 export const blogAgent = {
   stream: async function* (inputs: { sources: SourceContent[] }) {
@@ -17,6 +21,9 @@ export const blogAgent = {
       plan: '',
       todos: [],
       draft: '',
+      optimizationIteration: 0,
+      maxIterations: MAX_OPTIMIZATION_ITERATIONS,
+      previousDrafts: [],
     };
 
     try {
@@ -48,6 +55,38 @@ export const blogAgent = {
       const refinementUpdate = await refinementNode(state);
       state = { ...state, ...refinementUpdate };
       yield { refinement: refinementUpdate };
+
+      // Step 6: Evaluator-Optimizer Loop
+      let optimizationCycle = 0;
+      while (optimizationCycle < MAX_OPTIMIZATION_ITERATIONS) {
+        // Evaluate the current draft
+        state = { ...state, currentStep: 'evaluating' };
+        yield { evaluating: { currentStep: 'evaluating' } };
+
+        const evaluationUpdate = await evaluatorNode(state);
+        state = { ...state, ...evaluationUpdate };
+        yield { evaluation: evaluationUpdate };
+
+        // Check if evaluation passed or max iterations reached
+        if (
+          state.evaluation?.passThreshold ||
+          optimizationCycle >= MAX_OPTIMIZATION_ITERATIONS - 1
+        ) {
+          state = { ...state, currentStep: 'finished' };
+          yield { finished: { currentStep: 'finished' } };
+          break;
+        }
+
+        // Optimize based on feedback
+        state = { ...state, currentStep: 'optimizing' };
+        yield { optimizing: { currentStep: 'optimizing' } };
+
+        const optimizationUpdate = await optimizerNode(state);
+        state = { ...state, ...optimizationUpdate };
+        yield { optimization: optimizationUpdate };
+
+        optimizationCycle++;
+      }
 
     } catch (error) {
       console.error('Agent execution failed:', error);

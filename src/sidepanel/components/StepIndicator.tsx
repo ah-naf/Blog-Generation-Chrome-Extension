@@ -1,4 +1,4 @@
-import { CheckCircle2, Search, FileText, ListTodo, PenTool, Wand2, LucideIcon } from 'lucide-react';
+import { CheckCircle2, Search, FileText, ListTodo, PenTool, Wand2, Target, Zap, LucideIcon } from 'lucide-react';
 import { BlogAgentState } from '@/agent/blogAgent';
 
 interface Step {
@@ -18,11 +18,13 @@ const steps: Step[] = [
   { id: 'creating_todos', labelActive: 'Creating Tasks', labelCompleted: 'Tasks Created', icon: ListTodo },
   { id: 'executing_draft', labelActive: 'Writing', labelCompleted: 'Written', icon: PenTool },
   { id: 'refining', labelActive: 'Refining', labelCompleted: 'Refined', icon: Wand2 },
+  { id: 'evaluating', labelActive: 'Evaluating', labelCompleted: 'Evaluated', icon: Target },
+  { id: 'optimizing', labelActive: 'Optimizing', labelCompleted: 'Optimized', icon: Zap },
 ];
 
 export function StepIndicator({ currentStep }: StepIndicatorProps) {
   const getStepStatus = (stepId: string) => {
-    const stepOrder = ['analyzing_sources', 'creating_plan', 'creating_todos', 'executing_draft', 'refining', 'finished'];
+    const stepOrder = ['analyzing_sources', 'creating_plan', 'creating_todos', 'executing_draft', 'refining', 'evaluating', 'optimizing', 'finished'];
     const currentIndex = stepOrder.indexOf(currentStep || 'analyzing_sources');
     const stepIndex = stepOrder.indexOf(stepId);
 
