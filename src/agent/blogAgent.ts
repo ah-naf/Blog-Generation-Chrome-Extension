@@ -1,4 +1,5 @@
-import { SourceContent } from '@/shared/types';
+import { SourceContent, ChatMessage } from '@/shared/types';
+import { streamChat } from '@/shared/services/aiService';
 import { BlogAgentState, TodoItem } from './types';
 import {
   analyzeSourcesNode,
@@ -8,6 +9,7 @@ import {
   refinementNode,
   evaluatorNode,
   optimizerNode,
+  finalizeChatNode,
 } from './nodes';
 
 const MAX_OPTIMIZATION_ITERATIONS = 2; // Maximum optimization cycles
@@ -87,7 +89,6 @@ export const blogAgent = {
 
         optimizationCycle++;
       }
-
     } catch (error) {
       console.error('Agent execution failed:', error);
       yield {
@@ -96,6 +97,69 @@ export const blogAgent = {
           error: error instanceof Error ? error.message : 'Unknown error',
         } as Partial<BlogAgentState>,
       };
+    }
+  },
+
+  streamChat: async function* (inputs: {
+    messages: ChatMessage[];
+    currentDraft: string;
+    plan: string;
+  }) {
+    const systemPrompt = `You are a helpful blog writing assistant. You are helping the user refine a blog draft.
+    
+Current Draft Context:
+${inputs.currentDraft}
+
+Original Plan:
+${inputs.plan}
+
+Your goal is to answer questions about the draft, suggest improvements, or generate new content based on user requests.
+Be concise and specific. If the user asks for a change, provide the revised text or explain how to do it.
+`;
+
+    const chatMessages = inputs.messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    try {
+      const stream = streamChat(chatMessages, systemPrompt);
+      for await (const chunk of stream) {
+        yield chunk;
+      }
+    } catch (error) {
+      console.error('Chat execution failed:', error);
+      throw error;
+      console.error('Chat execution failed:', error);
+      throw error;
+    }
+  },
+
+  finalizeChatDraft: async function* (inputs: {
+    previousDraft: string;
+    refinedDraft: string;
+  }) {
+    const initialState: BlogAgentState = {
+      sources: [],
+      currentStep: 'refining',
+      sourceAnalysis: '',
+      plan: '',
+      todos: [],
+      draft: inputs.previousDraft,
+    };
+
+    try {
+      yield { refining: { currentStep: 'refining' } };
+
+      const update = await finalizeChatNode(initialState, {
+        previousDraft: inputs.previousDraft,
+        refinedDraft: inputs.refinedDraft,
+      });
+
+      yield { finalization: update };
+    } catch (error) {
+      console.error('Finalization failed:', error);
+      throw error;
     }
   },
 };

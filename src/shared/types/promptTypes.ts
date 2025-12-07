@@ -32,7 +32,8 @@ export type PromptTemplateType =
   | 'execute_draft'
   | 'refinement'
   | 'evaluation'
-  | 'optimization';
+  | 'optimization'
+  | 'chat_final_refinement';
 
 export interface PromptVersionEntry {
   version: number;

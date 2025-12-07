@@ -13,6 +13,9 @@ import { DraftActions } from './components/DraftActions';
 import { EvaluationFeedback } from './components/EvaluationFeedback';
 import { getCurrentActivityMessage, exportDraft } from './utils/generationHelpers';
 import { generationStateStorage } from '@/shared/utils/storage';
+import { ChatInterface } from './components/ChatInterface';
+import { ChatMessage } from '@/shared/types';
+import { MessageSquare } from 'lucide-react';
 
 interface GenerateTabProps {
   sources: SourceContent[];
@@ -31,6 +34,8 @@ export function GenerateTab({
 }: GenerateTabProps) {
   const [showTodos, setShowTodos] = useState(true);
   const [showPlan, setShowPlan] = useState(false);
+  const [viewMode, setViewMode] = useState<'draft' | 'chat'>('draft');
+  const [isChatStreaming, setIsChatStreaming] = useState(false);
   const { hasApiKey, apiProvider, validateBeforeGeneration } = useApiKeyValidation();
 
   // Check if all todos are completed
@@ -140,6 +145,120 @@ export function GenerateTab({
   };
 
   const hasContent = agentState.plan || agentState.draft || (agentState.todos && agentState.todos.length > 0);
+
+  const handleSendMessage = async (content: string) => {
+    // Optimistic update
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content,
+      timestamp: Date.now(),
+    };
+
+    const updatedHistory = [...(agentState.chatHistory || []), userMessage];
+    onAgentStateChange({
+      chatHistory: updatedHistory,
+    });
+    setIsChatStreaming(true);
+
+    try {
+      // Call agent for chat response
+      const inputs = {
+        messages: updatedHistory,
+        currentDraft: agentState.draft || '',
+        plan: agentState.plan || '',
+      };
+      
+      const stream = await blogAgent.streamChat(inputs);
+      
+      let assistantMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: '',
+        timestamp: Date.now(),
+      };
+
+      // Add placeholder for streaming
+      onAgentStateChange({
+        chatHistory: [...updatedHistory, assistantMessage],
+      });
+
+      for await (const chunk of stream) {
+        assistantMessage = {
+          ...assistantMessage,
+          content: assistantMessage.content + chunk,
+        };
+        
+        onAgentStateChange({
+          chatHistory: [...updatedHistory, assistantMessage],
+        });
+      }
+    } catch (error) {
+      console.error('Chat failed:', error);
+      // Add error message to chat or show toast
+    } finally {
+      setIsChatStreaming(false);
+    }
+  };
+
+  const handleApplyDraft = async (content: string) => {
+    // Switch back to draft view to show progress
+    setViewMode('draft');
+    onGeneratingChange(true);
+    
+    try {
+      const inputs = {
+        previousDraft: agentState.draft || '',
+        refinedDraft: content,
+      };
+
+      const stream = await blogAgent.finalizeChatDraft(inputs);
+      
+      let currentState: Partial<BlogAgentState> = {
+        ...agentState,
+        chatHistory: agentState.chatHistory, // Preserve history
+      };
+
+      for await (const chunk of stream) {
+        // Handle finalization updates
+        if ((chunk as any).finalization) {
+            const update = (chunk as any).finalization as Partial<BlogAgentState>;
+            currentState = { ...currentState, ...update };
+        } 
+        // Handle step updates
+        else if ((chunk as any).refining) {
+             currentState = { ...currentState, currentStep: 'refining' };
+        }
+        
+        onAgentStateChange(currentState);
+      }
+    } catch (error) {
+      console.error('Finalization failed:', error);
+      onAgentStateChange({
+          ...agentState,
+          error: error instanceof Error ? error.message : 'Finalization failed',
+          partialResults: true,
+      });
+    } finally {
+        onGeneratingChange(false);
+    }
+  };
+
+  if (viewMode === 'chat') {
+    return (
+      <ChatInterface
+        messages={agentState.chatHistory || []}
+        onSendMessage={handleSendMessage}
+        onApplyDraft={handleApplyDraft}
+        onBack={() => setViewMode('draft')}
+        isStreaming={isChatStreaming}
+      />
+    );
+  }
+
+  const handleRefineWithChat = () => {
+     setViewMode('chat');
+  };
 
   return (
     <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
@@ -269,13 +388,24 @@ export function GenerateTab({
 
             {/* Action Buttons */}
             {agentState.currentStep === 'finished' && (
-              <DraftActions
-                draft={agentState.draft}
-                onCopy={handleCopy}
-                onDownload={handleDownload}
-                onRegenerate={handleGenerate}
-                onClear={handleClear}
-              />
+              <>
+                <DraftActions
+                  draft={agentState.draft}
+                  onCopy={handleCopy}
+                  onDownload={handleDownload}
+                  onRegenerate={handleGenerate}
+                  onClear={handleClear}
+                />
+                <div className="flex justify-end mb-4">
+                  <button
+                    onClick={handleRefineWithChat}
+                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white text-sm font-medium rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-2"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Refine with Chat
+                  </button>
+                </div>
+              </>
             )}
 
             <div className="prose dark:prose-invert dark:text-[whitesmoke] prose-sm max-w-none">
