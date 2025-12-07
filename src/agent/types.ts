@@ -1,4 +1,4 @@
-import { SourceContent } from '@/shared/types';
+import { SourceContent, ChatMessage } from '@/shared/types';
 
 export interface TodoItem {
   id: string;
@@ -24,7 +24,15 @@ export interface EvaluationResult {
 
 export interface BlogAgentState {
   sources: SourceContent[];
-  currentStep: 'analyzing_sources' | 'creating_plan' | 'creating_todos' | 'executing_draft' | 'refining' | 'evaluating' | 'optimizing' | 'finished';
+  currentStep:
+    | 'analyzing_sources'
+    | 'creating_plan'
+    | 'creating_todos'
+    | 'executing_draft'
+    | 'refining'
+    | 'evaluating'
+    | 'optimizing'
+    | 'finished';
   currentTodo?: string;
   sourceAnalysis: string;
   plan: string;
@@ -37,4 +45,5 @@ export interface BlogAgentState {
   optimizationIteration?: number;
   maxIterations?: number;
   previousDrafts?: string[]; // Store history for comparison
+  chatHistory?: ChatMessage[];
 }

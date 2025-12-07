@@ -5,3 +5,4 @@ export { executeDraftNode } from './executeDraftNode';
 export { refinementNode } from './refinementNode';
 export { evaluatorNode } from './evaluatorNode';
 export { optimizerNode } from './optimizerNode';
+export { finalizeChatNode } from './finalizeChatNode';

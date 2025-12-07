@@ -33,6 +33,15 @@ export interface Section {
   order: number;
 }
 
+// Basic update for Message to be more generic if needed, or keep as is.
+// But we specifically need a ChatMessage for the chat feature.
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: number;
+}
+
 export interface Message {
   type: string;
   payload?: unknown;
@@ -98,6 +107,12 @@ export interface GenerationState {
     optimizationIteration?: number;
     maxIterations?: number;
     previousDrafts?: string[];
+    chatHistory?: Array<{
+      id: string;
+      role: 'user' | 'assistant' | 'system';
+      content: string;
+      timestamp: number;
+    }>;
   };
   timestamp?: string;
 }

@@ -453,4 +453,42 @@ Return the complete optimized blog post.`,
       },
     ],
   },
+
+  chat_final_refinement: {
+    system: `You are an expert blog editor. The user has refined a draft using a chat interface.
+Your task is to finalize the blog post by merging the "Refined Content" with the "Previous Draft" context if needed, or simply polishing the "Refined Content" if it's already complete.
+
+**Guidelines:**
+1. **Precedence**: The "Refined Content" is the source of truth for the latest changes.
+2. **Context**: Use the "Previous Draft" to maintain consistency or fill in missing sections if the refined content was just a specific part.
+3. **Consistency**: Ensure the tone, formatting, and structure are consistent throughout.
+4. **Formatting**: Ensure standard Medium-style markdown (H2, H3, code blocks, etc.).
+
+**Output:**
+Return ONLY the final, complete Markdown content. No greetings or explanations.`,
+    user: `Previous Draft Context:
+{{previousDraft}}
+
+Refined Content from Chat (Precedence):
+{{refinedDraft}}
+
+Instructions:
+Produce the final version of the blog post.
+- Give precedence to the Refined Content.
+- Ensure the result is a complete, cohesive blog post.`,
+    userVariables: [
+      {
+        name: 'previousDraft',
+        description: 'The draft before chat refinement (or current main draft)',
+        type: 'string',
+        required: true,
+      },
+      {
+        name: 'refinedDraft',
+        description: 'The selected draft content from the chat',
+        type: 'string',
+        required: true,
+      },
+    ],
+  },
 };
