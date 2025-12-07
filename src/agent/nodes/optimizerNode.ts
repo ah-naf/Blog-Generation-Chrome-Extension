@@ -1,26 +1,20 @@
 import { BlogAgentState } from '../types';
-import { generateContent } from '@/shared/services/aiService';
-import { withRetry } from '@/shared/utils/retry';
+import { generateContent } from '../../shared/services/aiService';
+import { getPromptsByType } from '../../shared/services/promptService';
+import { withRetry } from '../utils/retry';
+import { DEFAULT_PROMPTS } from '../../shared/prompts/defaultPrompts';
 
-/**
- * Optimizes the blog draft based on evaluation feedback
- */
 export async function optimizerNode(
   state: BlogAgentState
 ): Promise<Partial<BlogAgentState>> {
   const { draft, plan, evaluation, previousDrafts = [] } = state;
 
   if (!evaluation || evaluation.passThreshold) {
-    // No optimization needed
-    return {
-      currentStep: 'finished',
-    };
+    return { currentStep: 'finished' };
   }
 
-  // Store current draft in history
   const updatedHistory = [...previousDrafts, draft];
 
-  // Build detailed feedback for optimization
   const feedbackSummary = evaluation.scores
     .filter((s) => s.score < 8)
     .map(
@@ -31,43 +25,34 @@ ${s.suggestions && s.suggestions.length > 0 ? `- Suggestions:\n${s.suggestions.m
     )
     .join('\n\n');
 
-  const systemPrompt = `You are an expert technical blog writer specializing in optimization and refinement. Your task is to improve a blog draft based on detailed evaluation feedback.
+  const improvementFocus = evaluation.scores
+    .filter((s) => s.score < 8)
+    .map((s) => `- ${s.criterion}: ${s.suggestions?.[0] || s.feedback}`)
+    .join('\n');
 
-**Optimization Guidelines:**
+  const prompts = await getPromptsByType('optimization');
 
-1. **Preserve Strengths**: Keep aspects that scored well (8+/10)
-2. **Target Weaknesses**: Focus on criteria that scored below 8/10
-3. **Incremental Improvement**: Make focused improvements, don't rewrite everything
-4. **Maintain Structure**: Keep the overall structure and flow unless feedback specifically mentions it
-5. **Technical Accuracy**: Never sacrifice correctness for style
-6. **Code Quality**: Ensure all code examples are complete, correct, and well-explained
-7. **Medium Style**: Maintain professional technical blog tone with:
-   - Clear headings and sections
-   - Code blocks with syntax highlighting
-   - Engaging introduction and conclusion
-   - Practical examples and use cases
+  const systemTemplate =
+    prompts?.system.templateText ?? DEFAULT_PROMPTS.optimization.system;
+  const userTemplate =
+    prompts?.user.templateText ?? DEFAULT_PROMPTS.optimization.user;
 
-**Current Evaluation Scores:**
-- Overall Score: ${evaluation.overallScore}/10
-- Iteration: ${evaluation.iteration}
+  const data = {
+    overallScore: evaluation.overallScore.toString(),
+    iteration: evaluation.iteration.toString(),
+    feedbackSummary,
+    plan,
+    draft,
+    improvementFocus,
+  };
 
-**Areas Needing Improvement (Score < 8):**
-${feedbackSummary}
+  const systemPrompt = systemTemplate.replace(/\{\{([^}]+)\}\}/g, (_, key) => {
+    return (data as Record<string, string>)[key.trim()] ?? '';
+  });
 
-**Your Task:**
-Rewrite the blog post addressing the specific feedback above. Return the complete optimized blog post in Markdown format.`;
-
-  const userPrompt = `**Original Plan:**
-${plan}
-
-**Current Draft:**
-${draft}
-
-**Optimization Instructions:**
-Improve this draft by addressing the evaluation feedback. Focus on:
-${evaluation.scores.filter((s) => s.score < 8).map((s) => `- ${s.criterion}: ${s.suggestions?.[0] || s.feedback}`).join('\n')}
-
-Return the complete optimized blog post.`;
+  const userPrompt = userTemplate.replace(/\{\{([^}]+)\}\}/g, (_, key) => {
+    return (data as Record<string, string>)[key.trim()] ?? '';
+  });
 
   try {
     const optimizedDraft = await withRetry(

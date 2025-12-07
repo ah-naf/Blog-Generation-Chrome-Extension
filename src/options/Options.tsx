@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { getAISettings, saveAISettings, DEFAULT_AI_SETTINGS } from '@/shared/services/aiService';
 import type { AISettings, AIProvider } from '@/shared/types';
-import { Sun, Moon, Check, Key, Server, Bot } from 'lucide-react';
+import { Sun, Moon, Check, Key, Server, Bot, FileText } from 'lucide-react';
+import { TemplateGallery } from '@/shared/components/TemplateGallery';
 
 function Options() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -242,6 +243,21 @@ function Options() {
                   </p>
                 </div>
               )}
+            </div>
+          </section>
+
+          {/* Prompts & Templates */}
+          <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+              <span className="w-1 h-6 bg-teal-500 rounded-full"></span>
+              <FileText className="w-5 h-5 text-teal-500" />
+              Prompts & Templates
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              Customize the AI prompts used during blog generation. Edit templates, manage versions, and import/export your configurations.
+            </p>
+            <div style={{ minHeight: '500px' }}>
+              <TemplateGallery theme={theme} />
             </div>
           </section>
 

@@ -1,70 +1,33 @@
 import { generateContent } from '@/shared/services/aiService';
+import { getPromptsByType } from '@/shared/services/promptService';
 import { BlogAgentState } from '../types';
 import { withRetry } from '../utils/retry';
+import { DEFAULT_PROMPTS } from '@/shared/prompts/defaultPrompts';
 
 export async function createPlanNode(
   state: BlogAgentState
 ): Promise<Partial<BlogAgentState>> {
   const { sourceAnalysis, sources } = state;
 
-  const systemPrompt = `You are an expert Medium blog post strategist. Create a detailed content plan optimized for Medium's platform.
+  const prompts = await getPromptsByType('create_plan');
 
-**Medium Blog Best Practices:**
-- Start with a compelling hook or personal anecdote
-- Use clear H2 (##) and H3 (###) headings for structure
-- Include code blocks with syntax highlighting (use \`\`\`language syntax)
-- Break down complex concepts into step-by-step sections
-- Add practical examples and real-world use cases
-- Use bullet points and numbered lists for clarity
-- Include visual breaks (horizontal rules with ---)
-- End with clear takeaways and next steps
+  const systemTemplate =
+    prompts?.system.templateText ?? DEFAULT_PROMPTS.create_plan.system;
+  const userTemplate =
+    prompts?.user.templateText ?? DEFAULT_PROMPTS.create_plan.user;
 
-**Your Task:**
-Provide your response in TWO sections:
+  const data = {
+    sourceAnalysis,
+    sourceCount: sources.length.toString(),
+  };
 
-## Reasoning
-Explain in 2-3 sentences WHY this structure/approach makes sense for Medium readers. Consider:
-- What makes this topic engaging?
-- Why this step-by-step approach works
-- How code examples enhance understanding
+  const systemPrompt = systemTemplate.replace(/\{\{([^}]+)\}\}/g, (_, key) => {
+    return (data as Record<string, string>)[key.trim()] ?? '';
+  });
 
-## Plan
-Create a detailed Medium blog outline with:
-
-1. **Catchy Title** (with a subtitle if needed)
-2. **Introduction** (2-3 paragraphs)
-   - Hook/personal story
-   - Problem statement
-   - What readers will learn
-3. **Main Content Sections** (3-6 sections)
-   - Each section with H2 heading
-   - Step-by-step breakdowns where applicable
-   - Code examples to include (specify language)
-   - Explanations needed
-   - Subsections (H3) if complex
-4. **Practical Examples/Tutorial**
-   - Hands-on implementation
-   - Code walkthrough
-5. **Common Pitfalls / Best Practices** (if applicable)
-6. **Conclusion**
-   - Key takeaways (3-5 bullets)
-   - Call to action
-   - Further resources
-
-Be specific about where code blocks should go and what they should demonstrate.`;
-
-  const userPrompt = `Based on this source analysis:
-
-${sourceAnalysis}
-
-Create a comprehensive Medium blog post plan that synthesizes insights from all ${sources.length} sources.
-
-Requirements:
-- Target audience: Developers/technical readers on Medium
-- Style: Conversational yet professional
-- Length: 8-12 minute read (~2000-3000 words)
-- Must include: Code examples, step-by-step tutorials, practical applications
-- Format: Markdown with proper code blocks`;
+  const userPrompt = userTemplate.replace(/\{\{([^}]+)\}\}/g, (_, key) => {
+    return (data as Record<string, string>)[key.trim()] ?? '';
+  });
 
   try {
     const response = await withRetry(
@@ -72,7 +35,6 @@ Requirements:
       2
     );
 
-    // Extract plan (everything after ## Plan)
     const planMatch = response.match(/## Plan\s+([\s\S]+)/i);
     const plan = planMatch ? planMatch[1].trim() : response;
 

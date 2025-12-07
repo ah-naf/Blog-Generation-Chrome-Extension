@@ -13,13 +13,13 @@ interface StepIndicatorProps {
 }
 
 const steps: Step[] = [
-  { id: 'analyzing_sources', labelActive: 'Analyzing', labelCompleted: 'Analyzed', icon: Search },
-  { id: 'creating_plan', labelActive: 'Planning', labelCompleted: 'Planned', icon: FileText },
-  { id: 'creating_todos', labelActive: 'Creating Tasks', labelCompleted: 'Tasks Created', icon: ListTodo },
-  { id: 'executing_draft', labelActive: 'Writing', labelCompleted: 'Written', icon: PenTool },
-  { id: 'refining', labelActive: 'Refining', labelCompleted: 'Refined', icon: Wand2 },
-  { id: 'evaluating', labelActive: 'Evaluating', labelCompleted: 'Evaluated', icon: Target },
-  { id: 'optimizing', labelActive: 'Optimizing', labelCompleted: 'Optimized', icon: Zap },
+  { id: 'analyzing_sources', labelActive: 'Analyze', labelCompleted: 'Done', icon: Search },
+  { id: 'creating_plan', labelActive: 'Plan', labelCompleted: 'Done', icon: FileText },
+  { id: 'creating_todos', labelActive: 'Tasks', labelCompleted: 'Done', icon: ListTodo },
+  { id: 'executing_draft', labelActive: 'Write', labelCompleted: 'Done', icon: PenTool },
+  { id: 'refining', labelActive: 'Refine', labelCompleted: 'Done', icon: Wand2 },
+  { id: 'evaluating', labelActive: 'Evaluate', labelCompleted: 'Done', icon: Target },
+  { id: 'optimizing', labelActive: 'Optimize', labelCompleted: 'Done', icon: Zap },
 ];
 
 export function StepIndicator({ currentStep }: StepIndicatorProps) {
@@ -40,41 +40,54 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
   };
 
   return (
-    <div className="flex items-center justify-between relative">
-      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-200 dark:bg-gray-700 -z-10" />
-      {steps.map((step) => {
-        const status = getStepStatus(step.id);
-        const Icon = step.icon;
+    <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
+      <div className="flex items-center gap-1 min-w-max py-1">
+        {steps.map((step, index) => {
+          const status = getStepStatus(step.id);
+          const Icon = step.icon;
 
-        return (
-          <div key={step.id} className="flex flex-col items-center gap-2 bg-white dark:bg-gray-800 px-2">
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors ${
-                status === 'completed'
-                  ? 'bg-green-500 border-green-500 text-white'
-                  : status === 'current'
-                  ? 'bg-primary-600 border-primary-600 text-white animate-pulse'
-                  : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400'
-              }`}
-            >
-              {status === 'completed' ? (
-                <CheckCircle2 className="w-5 h-5" />
-              ) : (
-                <Icon className="w-4 h-4" />
+          return (
+            <div key={step.id} className="flex items-center">
+              <div className="flex flex-col items-center gap-1">
+                <div
+                  className={`w-7 h-7 rounded-full flex items-center justify-center border-2 transition-colors flex-shrink-0 ${
+                    status === 'completed'
+                      ? 'bg-green-500 border-green-500 text-white'
+                      : status === 'current'
+                      ? 'bg-primary-600 border-primary-600 text-white animate-pulse'
+                      : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400'
+                  }`}
+                >
+                  {status === 'completed' ? (
+                    <CheckCircle2 className="w-4 h-4" />
+                  ) : (
+                    <Icon className="w-3.5 h-3.5" />
+                  )}
+                </div>
+                <span
+                  className={`text-[10px] font-medium whitespace-nowrap ${
+                    status === 'completed' || status === 'current'
+                      ? 'text-gray-900 dark:text-white'
+                      : 'text-gray-400 dark:text-gray-500'
+                  }`}
+                >
+                  {getStepLabel(step)}
+                </span>
+              </div>
+              {index < steps.length - 1 && (
+                <div
+                  className={`w-4 h-0.5 mx-1 flex-shrink-0 ${
+                    getStepStatus(steps[index + 1].id) === 'pending'
+                      ? 'bg-gray-200 dark:bg-gray-700'
+                      : 'bg-green-500'
+                  }`}
+                />
               )}
             </div>
-            <span
-              className={`text-xs font-medium ${
-                status === 'completed' || status === 'current'
-                  ? 'text-gray-900 dark:text-white'
-                  : 'text-gray-500 dark:text-gray-400'
-              }`}
-            >
-              {getStepLabel(step)}
-            </span>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
+
